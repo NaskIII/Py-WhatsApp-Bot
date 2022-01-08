@@ -9,6 +9,7 @@ from webdriver_manager.chrome import ChromeDriverManager
 import requests
 import os
 import time
+import urllib.request as urlRequest
 
 from webdriver_manager.utils import File
 
@@ -20,10 +21,11 @@ _TIMEOUT: int = 5
 _INIT_TIMEOUT: int = 15
 _LAST_MESSAGE: str = ''
 
-_HTML_BALOON_MESSAGE: str = '_22Msk'
+_HTML_BALOON_MESSAGE: str = 'Nm1g1'
 _HTML_MESSAGE: str = '_1Gy50'
 _HTML_HOUR_MESSAGE: str = 'kOrB_'
 _HTML_XPATH_TEXTBOX: str = '//*[@id="main"]/footer/div[1]/div/span[2]/div/div[2]/div[1]/div/div[2]'
+_HTML_SEND_BUTTON: str = '_4sWnG'
 
 
 class Whatsapp_API(object):
@@ -75,13 +77,13 @@ class Whatsapp_API(object):
 
     def send_message(self) -> bool:
         """Send message"""
-        global _TIMEOUT
+        global _TIMEOUT, _HTML_SEND_BUTTON
         try:
             element_present = EC.presence_of_element_located(
-                (By.CLASS_NAME, '_4sWnG'))
+                (By.CLASS_NAME, _HTML_SEND_BUTTON))
             WebDriverWait(self.driver, _TIMEOUT).until(element_present)
             send_button = self.driver.find_element(
-                by=By.CLASS_NAME, value='_4sWnG')
+                by=By.CLASS_NAME, value=_HTML_SEND_BUTTON)
             send_button.click()
             return True
         except TimeoutException:
@@ -113,10 +115,11 @@ class Whatsapp_API(object):
                         by=By.CLASS_NAME, value=_HTML_MESSAGE).text
                     print(_LAST_MESSAGE)
                     return message.find_element(by=By.CLASS_NAME, value=_HTML_MESSAGE).text
-    
+
     def read_image(self, fileName: str = 'Image.png', triggerMessage: str = '!image') -> File:
         with open(fileName, 'wb') as file:
-            image = self.driver.find_elements(by=By.XPATH, value="//img[@alt='%s']" %(triggerMessage))
+            image = self.driver.find_elements(
+                by=By.XPATH, value="//img[@alt='%s']" % (triggerMessage))[-1].screenshot_as_png
             file.write(image)
 
     def quit(self) -> None:
