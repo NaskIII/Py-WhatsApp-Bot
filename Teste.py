@@ -2,7 +2,7 @@ from core import Whatsapp
 import time
 
 
-whats = Whatsapp.Whatsapp_API()
+whats = Whatsapp.Whatsapp_API(width=1280, height=720)
 whats.web(5)
 whats.contacts('Teste para a Cortana')
 whats.message('Olá, sou Cortana, é um prazer ver vocês.')
@@ -16,5 +16,13 @@ while True:
     if message == '!quit':
         whats.answer_message('Adeus!')
         whats.quit()
-    if message == '!image':
-        whats.read_image()
+    if message.__contains__('!image'):
+        if len(message.split()) <= 1:
+            whats.answer_message('Por favor, siga as regras de imagem.')
+        elif len(message.split()) >= 2:
+            if whats.read_image(message.split()[1], message):
+                whats.answer_message("Comando executado com sucesso.")
+            else:
+                whats.answer_message(
+                    "Houve um erro inesperado, por favor siga as regras de imagem e tende novamente mais tarde.")
+
