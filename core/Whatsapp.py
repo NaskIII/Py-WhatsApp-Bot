@@ -1,5 +1,5 @@
 from selenium import webdriver
-from selenium.common.exceptions import TimeoutException
+from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.remote.webelement import WebElement
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
@@ -9,7 +9,6 @@ from webdriver_manager.chrome import ChromeDriverManager
 
 import requests
 import os
-import time
 from platform import system
 import pathlib
 from io import BytesIO
@@ -19,14 +18,16 @@ import win32clipboard
 from PIL import Image
 
 from core.Exceptions import InternetExeption
+from selenium.common.exceptions import TimeoutException, NoSuchElementException
 
 
 URL: str = 'https://web.whatsapp.com'
 CHECK_CONNECTION_URL = 'https://www.google.com'
 TIMEOUT: int = 5
-INIT_TIMEOUT: int = 15
+LOADING_TIME: int = 20
 LAST_MESSAGE: str = ''
 
+HTML_FIRST_TIME: str = '_1N3oL'
 HTML_CONTACTS_TEXTBOX: str = '//*[@id="side"]/div[1]/div/label/div/div[2]'
 HTML_BALOON_MESSAGE: str = 'Nm1g1'
 HTML_MESSAGE: str = '_1Gy50'
@@ -42,7 +43,7 @@ class Whatsapp_API(object):
     def __init__(self, width: int = 800, height: int = 600, window_position_x: int = 50, window_position_y: int = 50) -> None:
         """Init the class with the webdriver objects"""
         super().__init__()
-        options: object = webdriver.ChromeOptions()
+        options: Options = webdriver.ChromeOptions()
         options.add_argument(r"user-data-dir=" + os.getcwd() + r"\profile")
         options.add_experimental_option("excludeSwitches", ["enable-logging"])
         self.driver = webdriver.Chrome(
@@ -59,18 +60,45 @@ class Whatsapp_API(object):
             raise InternetExeption(
                 "Error while connecting. Make sure you are connected to the Internet!")
 
-    def web(self, time_to_login: int) -> None:
-        """Start browser with whatsapp web"""
-        global URL, INIT_TIMEOUT
-        self.driver.get(URL)
+    def first_time(self) -> bool:
+        """
+        Checks if this is the first time the login is done
+        """
+        global HTML_FIRST_TIME
         try:
-            self.driver.implicitly_wait(INIT_TIMEOUT)
-            time.sleep(time_to_login)
-        except:
-            self.driver.quit()
+            element_present = EC.presence_of_element_located(
+                (By.CLASS_NAME, HTML_FIRST_TIME))
+            WebDriverWait(self.driver, TIMEOUT).until(element_present)
+            self.driver.find_element(by=By.CLASS_NAME, value=HTML_FIRST_TIME)
+            return True
+        except NoSuchElementException:
+            return False
+        except TimeoutException:
+            return False
+
+    def web(self, time_to_login: int = 120) -> None:
+        """
+        Start browser with whatsapp web, if your first time, by default you have 120 seconds.
+
+        args - time_to_login: time that you have to read the qrcode in whatsapp web.
+        """
+        global URL, LOADING_TIME
+
+        self.driver.get(URL)
+
+        if self.first_time():
+            print(
+                'Use your cellphone to login in WhatsApp Web, you have by default 120 seconds to do it.')
+            self.driver.implicitly_wait(120)
+            self.driver.implicitly_wait(LOADING_TIME)
+        else:
+            print('Login successfully.')
+            self.driver.implicitly_wait(LOADING_TIME)
 
     def send_button(self) -> WebElement:
+        """Find the send button to send text and images to a contact."""
         global TIMEOUT, HTML_SEND_XPATH_BUTTON
+
         try:
             element_present = EC.presence_of_element_located(
                 (By.XPATH, HTML_SEND_XPATH_BUTTON))
@@ -82,7 +110,13 @@ class Whatsapp_API(object):
             )
 
     def chat_box(self, chat_box: str) -> WebElement:
+        """
+        Find the chatbox of whatsapp.
+
+        args chat_box: str - the xPath of the element
+        """
         global TIMEOUT
+
         try:
             element_present = EC.presence_of_element_located(
                 (By.XPATH, chat_box))
@@ -94,6 +128,11 @@ class Whatsapp_API(object):
             )
 
     def find_contact(self, contact_name: str) -> WebElement:
+        """
+        Find a contact by their name.
+
+        args contact_name: str - the name of contact.
+        """
         try:
             element_present = EC.presence_of_element_located(
                 (By.XPATH, "//span[@title='%s']" % (contact_name)))
@@ -105,7 +144,9 @@ class Whatsapp_API(object):
             )
 
     def close_image(self) -> WebElement:
+        """Close the image"""
         global TIMEOUT, HTML_X_XPATH_BUTTON
+
         try:
             element_present = EC.presence_of_element_located(
                 (By.XPATH, HTML_X_XPATH_BUTTON))
@@ -118,7 +159,13 @@ class Whatsapp_API(object):
             )
 
     def get_image_by_xpath(self, message: str) -> list[WebElement]:
+        """
+        Get the image by Xpath
+
+        args value: str - the Xpath of the image.
+        """
         global TIMEOUT
+
         try:
             element_present = EC.presence_of_element_located(
                 (By.XPATH, message))
@@ -131,6 +178,11 @@ class Whatsapp_API(object):
             )
 
     def get_image_by_class_name(self, value: str) -> list[WebElement]:
+        """
+        Get the image by class name
+
+        args value: str - class name of the image.
+        """
         global TIMEOUT
 
         try:
@@ -174,6 +226,7 @@ class Whatsapp_API(object):
         params: trigger: str - The trigger command, default '!'.
         """
         global LAST_MESSAGE, HTML_MESSAGE, HTML_BALOON_MESSAGE, HTML_HOUR_MESSAGE
+
         message = self.driver.find_elements(
             by=By.CLASS_NAME, value=HTML_BALOON_MESSAGE)[-1]
         if message.find_element(by=By.CLASS_NAME, value=HTML_MESSAGE).text[0] == trigger and message.find_element(by=By.CLASS_NAME, value=HTML_MESSAGE).text != LAST_MESSAGE:
@@ -183,13 +236,21 @@ class Whatsapp_API(object):
             return message.find_element(by=By.CLASS_NAME, value=HTML_MESSAGE).text
         return ''
 
-    def read_image(self, fileName: str, triggerMessage: str, dir: str = os.getcwd()) -> bool:
+    def read_image(self, triggerMessage: str, dir: str = os.getcwd() + r'/images', fileName: str = 'image') -> bool:
+        """
+        Receive a image from a contact and save then n a especific location.
+
+        args fileName: str - name of the image
+             triggerMessage: str - the message that trigger the command
+             dir: str - the path to save the image, by default ir the root directory
+        """
         global HTML_IMAGE_BOX_CLASS, HTML_IMAGE_CLASS
+
         try:
             with open(dir + '/' + fileName + '.png', 'wb') as file:
                 self.get_image_by_xpath(
                     "//img[@alt='%s']" % (triggerMessage))[-1].click()
-                time.sleep(2)
+                self.driver.implicitly_wait(0.5)
                 image = self.get_image_by_class_name(HTML_IMAGE_BOX_CLASS)[-1].find_elements(
                     by=By.CLASS_NAME, value=HTML_IMAGE_CLASS)[-1].screenshot_as_png
                 file.write(image)
@@ -197,8 +258,10 @@ class Whatsapp_API(object):
                 return True
         except IOError as err:
             print(err)
+            return False
         except Exception as err:
             print(err)
+            return False
 
     def copy_image(self, path: str) -> None:
         """Copy the Image to Clipboard based on the Platform"""
@@ -234,17 +297,24 @@ class Whatsapp_API(object):
             raise Exception(f"Unsupported System: {system().lower()}")
 
     def send_image(self, dir: str) -> bool:
+        """
+        Send image to a contact.
+        
+        args dir: str - the path to image
+        """
         global HTML_XPATH_TEXTBOX
+
         try:
             self.chat_box(HTML_XPATH_TEXTBOX).click()
             self.copy_image(dir)
             hotkey("ctrl", "v")
             self.send_button().click()
-            time.sleep(1)
+            self.driver.implicitly_wait(0.5)
             return True
         except:
             return False
 
     def quit(self) -> None:
-        time.sleep(2)
+        """Close all chrome process"""
+        self.driver.implicitly_wait(1)
         self.driver.quit()
