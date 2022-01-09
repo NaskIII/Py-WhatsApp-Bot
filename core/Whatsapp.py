@@ -1,5 +1,6 @@
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
+from selenium.webdriver.remote import webelement
 from selenium.webdriver.remote.webelement import WebElement
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
@@ -7,6 +8,7 @@ from selenium.webdriver.common.by import By
 
 from webdriver_manager.chrome import ChromeDriverManager
 
+import time
 import requests
 import os
 from platform import system
@@ -18,7 +20,7 @@ import win32clipboard
 from PIL import Image
 
 from core.Exceptions import InternetExeption
-from selenium.common.exceptions import TimeoutException, NoSuchElementException
+from selenium.common.exceptions import ElementClickInterceptedException, TimeoutException, NoSuchElementException
 
 
 URL: str = 'https://web.whatsapp.com'
@@ -40,7 +42,7 @@ HTML_X_XPATH_BUTTON: str = '//span[@data-testid="x-viewer"]'
 
 
 class Whatsapp_API(object):
-    def __init__(self, width: int = 800, height: int = 600, window_position_x: int = 50, window_position_y: int = 50) -> None:
+    def __init__(self, width: int = 800, height: int = 600, window_position_x: int = 50, window_position_y: int = 50, bot_name: str = 'Cortana') -> None:
         """Init the class with the webdriver objects"""
         super().__init__()
         options: Options = webdriver.ChromeOptions()
@@ -51,6 +53,7 @@ class Whatsapp_API(object):
         self.driver.set_window_size(width=width, height=height)
         self.driver.set_window_position(
             x=window_position_x, y=window_position_y)
+        self.bot_name = bot_name
 
     def check_internet_connection(self, url: str = CHECK_CONNECTION_URL) -> None:
         """Check the Internet connection of the Host Machine"""
@@ -62,7 +65,7 @@ class Whatsapp_API(object):
 
     def first_time(self) -> bool:
         """
-        Checks if this is the first time the login is done
+        Checks if this is the first time login
         """
         global HTML_FIRST_TIME
         try:
@@ -89,7 +92,7 @@ class Whatsapp_API(object):
         if self.first_time():
             print(
                 'Use your cellphone to login in WhatsApp Web, you have by default 120 seconds to do it.')
-            self.driver.implicitly_wait(120)
+            time.sleep(time_to_login)
             self.driver.implicitly_wait(LOADING_TIME)
         else:
             print('Login successfully.')
@@ -173,9 +176,10 @@ class Whatsapp_API(object):
             return self.driver.find_elements(
                 by=By.XPATH, value=message)
         except TimeoutException:
-            raise TimeoutException(
+            print(TimeoutException(
                 "Error trying to find the html element, please check html xPath."
-            )
+            ))
+            return []
 
     def get_image_by_class_name(self, value: str) -> list[WebElement]:
         """
@@ -192,9 +196,10 @@ class Whatsapp_API(object):
             return self.driver.find_elements(
                 by=By.CLASS_NAME, value=value)
         except TimeoutException:
-            raise TimeoutException(
+            print(TimeoutException(
                 "Error trying to find the html element, please check html xPath."
-            )
+            ))
+            return []
 
     def contacts(self, contact_name: str) -> None:
         """Go into target chat in whatsapp"""
@@ -203,12 +208,12 @@ class Whatsapp_API(object):
         self.chat_box(HTML_CONTACTS_TEXTBOX).send_keys(contact_name)
         self.find_contact(contact_name).click()
 
-    def message(self, text: str, bot_name: str = 'Cortana') -> None:
+    def message(self, text: str) -> None:
         """Send text to whatsapp textbox"""
         global HTML_XPATH_TEXTBOX
 
         self.chat_box(HTML_XPATH_TEXTBOX).send_keys(
-            '%s: %s' % (bot_name, text))
+            '%s: %s' % (self.bot_name, text))
 
     def send_message(self) -> None:
         """Send message"""
@@ -236,7 +241,7 @@ class Whatsapp_API(object):
             return message.find_element(by=By.CLASS_NAME, value=HTML_MESSAGE).text
         return ''
 
-    def read_image(self, triggerMessage: str, dir: str = os.getcwd() + r'/images', fileName: str = 'image') -> bool:
+    def read_image(self, triggerMessage: str, dir: str, fileName: str = 'image') -> bool:
         """
         Receive a image from a contact and save then n a especific location.
 
@@ -247,12 +252,19 @@ class Whatsapp_API(object):
         global HTML_IMAGE_BOX_CLASS, HTML_IMAGE_CLASS
 
         try:
+            self.get_image_by_xpath(
+                "//img[@alt='%s']" % (triggerMessage))[-1].click()
+        except IndexError:
+            return False
+        except ElementClickInterceptedException:
+            return False
+
+        self.driver.implicitly_wait(0.5)
+        image = self.get_image_by_class_name(HTML_IMAGE_BOX_CLASS)[-1].find_elements(
+            by=By.CLASS_NAME, value=HTML_IMAGE_CLASS)[-1].screenshot_as_png
+
+        try:
             with open(dir + '/' + fileName + '.png', 'wb') as file:
-                self.get_image_by_xpath(
-                    "//img[@alt='%s']" % (triggerMessage))[-1].click()
-                self.driver.implicitly_wait(0.5)
-                image = self.get_image_by_class_name(HTML_IMAGE_BOX_CLASS)[-1].find_elements(
-                    by=By.CLASS_NAME, value=HTML_IMAGE_CLASS)[-1].screenshot_as_png
                 file.write(image)
                 self.close_image().click()
                 return True
@@ -275,15 +287,19 @@ class Whatsapp_API(object):
                     f"File Format {pathlib.Path(path).suffix} is not Supported!"
                 )
         elif system().lower() == "windows":
-            image = Image.open(path)
-            output = BytesIO()
-            image.convert("RGB").save(output, "BMP")
-            data = output.getvalue()[14:]
-            output.close()
-            win32clipboard.OpenClipboard()
-            win32clipboard.EmptyClipboard()
-            win32clipboard.SetClipboardData(win32clipboard.CF_DIB, data)
-            win32clipboard.CloseClipboard()
+            try:
+                with Image.open(path) as image:
+                    output = BytesIO()
+                    image.convert("RGB").save(output, "BMP")
+                    data = output.getvalue()[14:]
+                    output.close()
+                    win32clipboard.OpenClipboard()
+                    win32clipboard.EmptyClipboard()
+                    win32clipboard.SetClipboardData(
+                        win32clipboard.CF_DIB, data)
+                    win32clipboard.CloseClipboard()
+            except FileNotFoundError:
+                print(FileNotFoundError('File not Found'))
         elif system().lower() == "darwin":
             if pathlib.Path(path).suffix in (".jpg", ".jpeg", ".JPG", ".JPEG"):
                 os.system(
@@ -299,7 +315,7 @@ class Whatsapp_API(object):
     def send_image(self, dir: str) -> bool:
         """
         Send image to a contact.
-        
+
         args dir: str - the path to image
         """
         global HTML_XPATH_TEXTBOX
@@ -313,6 +329,12 @@ class Whatsapp_API(object):
             return True
         except:
             return False
+
+    def send_emoji_to_text_box(self, text: str, text_box: str = HTML_XPATH_TEXTBOX) -> None:
+        """Send a emoji to Whatsapp text box"""
+        chat_box: webelement = self.chat_box(text_box)
+        self.driver.execute_script("arguments[0].innerHTML = '{}'".format(text), chat_box)
+        self.message('')
 
     def quit(self) -> None:
         """Close all chrome process"""
