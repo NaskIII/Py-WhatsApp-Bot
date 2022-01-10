@@ -4,3 +4,11 @@ class InternetExeption(Exception):
     """
 
     pass
+
+
+class InvalidParameterException(Exception):
+    """
+    The parameter received is invalid. Choose between 1 to write in the contact search box or 2 to write in the message text box
+    """
+
+    pass

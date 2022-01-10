@@ -8,6 +8,10 @@ from selenium.webdriver.common.by import By
 
 from webdriver_manager.chrome import ChromeDriverManager
 
+from pyautogui import hotkey
+import win32clipboard
+from PIL import Image
+
 import time
 import requests
 import os
@@ -15,11 +19,7 @@ from platform import system
 import pathlib
 from io import BytesIO
 
-from pyautogui import hotkey
-import win32clipboard
-from PIL import Image
-
-from core.Exceptions import InternetExeption
+from core.Exceptions import InternetExeption, InvalidParameterException
 from selenium.common.exceptions import (
     ElementClickInterceptedException,
     StaleElementReferenceException,
@@ -31,24 +31,33 @@ URL: str = 'https://web.whatsapp.com'
 CHECK_CONNECTION_URL = 'https://www.google.com'
 TIMEOUT: int = 5
 LOADING_TIME: int = 20
-LAST_MESSAGE: str = ''
 
-HTML_FIRST_TIME: str = '_1N3oL'
-HTML_CONTACTS_TEXTBOX: str = '//*[@id="side"]/div[1]/div/label/div/div[2]'
-HTML_BALOON_MESSAGE: str = 'Nm1g1'
-HTML_MESSAGE: str = '_1Gy50'
-HTML_HOUR_MESSAGE: str = 'kOrB_'
-HTML_IMAGE_BOX_CLASS: str = '_1N4rE'
-HTML_IMAGE_CLASS: str = '_3IfUe'
-HTML_XPATH_TEXTBOX: str = '//*[@id="main"]/footer/div[1]/div/span[2]/div/div[2]/div[1]/div/div[2]'
-HTML_SEND_XPATH_BUTTON: str = '//span[@data-testid="send"]'
-HTML_X_XPATH_BUTTON: str = '//span[@data-testid="x-viewer"]'
-HTML_NEW_MESSAGE: str = 'Hy9nV'
+HTML_FIRST_TIME_CHECK_CLASS_NAME: str = '_1N3oL'
+HTML_BALOON_MESSAGE_CLASS_NAME: str = 'Nm1g1'
+HTML_MESSAGE_CLASS_NAME: str = '_1Gy50'
+HTML_HOUR_MESSAGE_CLASS_NAME: str = 'kOrB_'
+HTML_IMAGE_BOX_CLASS_NAME: str = '_1N4rE'
+HTML_IMAGE_CLASS_NAME: str = '_3IfUe'
+HTML_NEW_MESSAGE_CLASS_NAME: str = 'Hy9nV'
+
+HTML_SEARCH_CONTACTS_TEXTBOX_XPATH: str = '//*[@id="side"]/div[1]/div/label/div/div[2]'
+HTML_XPATH_TEXTBOX_XPATH: str = '//*[@id="main"]/footer/div[1]/div/span[2]/div/div[2]/div[1]/div/div[2]'
+HTML_SEND_BUTTON_XPATH: str = '//span[@data-testid="send"]'
+HTML_CLOSE_IMAGE_BUTTON_XPATH: str = '//span[@data-testid="x-viewer"]'
 
 
 class Whatsapp_API(object):
     def __init__(self, width: int = 800, height: int = 600, window_position_x: int = 50, window_position_y: int = 50, bot_name: str = 'Cortana') -> None:
-        """Init the class with the webdriver objects"""
+        """
+        Start the class with webdriver objects
+
+        params:
+            width: int - the browser width
+            height: int - the height of the browser
+            window_position_x: int - browser's starting position in quadrant x
+            window_position_y: int - browser start position in y quadrant
+            bot_name: str - name for the bot, by default the name is set to Cortana 
+        """
         super().__init__()
         options: Options = webdriver.ChromeOptions()
         options.add_argument(r"user-data-dir=" + os.getcwd() + r"\profile")
@@ -68,34 +77,39 @@ class Whatsapp_API(object):
             raise InternetExeption(
                 "Error while connecting. Make sure you are connected to the Internet!")
 
-    def first_time(self) -> bool:
+    def first_time_check(self) -> bool:
         """
-        Checks if this is the first time login
+        Checks if this is the first time the login is being done
+
+        raise - NoSuchElementException
+                TimeoutException
         """
-        global HTML_FIRST_TIME
+        global HTML_FIRST_TIME_CHECK_CLASS_NAME
 
         try:
             element_present = EC.presence_of_element_located(
-                (By.CLASS_NAME, HTML_FIRST_TIME))
+                (By.CLASS_NAME, HTML_FIRST_TIME_CHECK_CLASS_NAME))
             WebDriverWait(self.driver, TIMEOUT).until(element_present)
-            self.driver.find_element(by=By.CLASS_NAME, value=HTML_FIRST_TIME)
+            self.driver.find_element(
+                by=By.CLASS_NAME, value=HTML_FIRST_TIME_CHECK_CLASS_NAME)
             return True
         except NoSuchElementException:
             return False
         except TimeoutException:
             return False
 
-    def web(self, time_to_login: int = 120) -> None:
+    def open_whatsapp_web(self, time_to_login: int = 120) -> None:
         """
-        Start browser with whatsapp web, if your first time, by default you have 120 seconds.
+        Open Whatsapp web, if it is the first time the system will wait 120 seconds for the login to be done.
 
-        args - time_to_login: time that you have to read the qrcode in whatsapp web.
+        params:
+            time_to_login: int - time to read whatsapp web QRCode
         """
         global URL, LOADING_TIME
 
         self.driver.get(URL)
 
-        if self.first_time():
+        if self.first_time_check():
             print(
                 'Use your cellphone to login in WhatsApp Web, you have by default 120 seconds to do it.')
             time.sleep(time_to_login)
@@ -104,43 +118,37 @@ class Whatsapp_API(object):
             print('Login successfully.')
             self.driver.implicitly_wait(LOADING_TIME)
 
-    def send_button(self) -> WebElement:
-        """Find the send button to send text and images to a contact."""
-        global TIMEOUT, HTML_SEND_XPATH_BUTTON
+    def listen(self, list_commands: list[str]) -> list[WebElement]:
+        """
+        Checks if other conversations are executing commands
+
+        params:
+            list_commands: list[str] - list of commands for checking
+
+        raise - StaleElementReferenceException
+        """
+        global HTML_NEW_MESSAGE_CLASS_NAME
+        queue: list[WebElement] = []
 
         try:
-            element_present = EC.presence_of_element_located(
-                (By.XPATH, HTML_SEND_XPATH_BUTTON))
-            WebDriverWait(self.driver, TIMEOUT).until(element_present)
-            return self.driver.find_element(by=By.XPATH, value=HTML_SEND_XPATH_BUTTON)
-        except TimeoutException:
-            raise TimeoutException(
-                "Error trying to find the html element, please check html xPath."
-            )
-
-    def chat_box(self, chat_box: str) -> WebElement:
-        """
-        Find the chatbox of whatsapp.
-
-        args chat_box: str - the xPath of the element
-        """
-        global TIMEOUT
-
-        try:
-            element_present = EC.presence_of_element_located(
-                (By.XPATH, chat_box))
-            WebDriverWait(self.driver, TIMEOUT).until(element_present)
-            return self.driver.find_element(by=By.XPATH, value=chat_box)
-        except TimeoutException:
-            raise TimeoutException(
-                "Error trying to find the html element, please check html xPath."
-            )
+            new_messages: list[WebElement] = self.driver.find_elements(
+                by=By.CLASS_NAME, value=HTML_NEW_MESSAGE_CLASS_NAME)
+            for message in new_messages:
+                if message.find_element(by=By.TAG_NAME, value='span').text in list_commands:
+                    queue.append(message.find_element(
+                        by=By.TAG_NAME, value='span'))
+            return queue
+        except StaleElementReferenceException:
+            return queue
 
     def find_contact(self, contact_name: str) -> WebElement:
         """
-        Find a contact by their name.
+        Find and return a contact on Whatsapp Web
 
-        args contact_name: str - the name of contact.
+        params:
+            contact_name: str - the contact's name
+
+        raise - TimeoutException
         """
         try:
             element_present = EC.presence_of_element_located(
@@ -149,110 +157,68 @@ class Whatsapp_API(object):
             return self.driver.find_element(by=By.XPATH, value="//span[@title='%s']" % (contact_name))
         except TimeoutException:
             raise TimeoutException(
-                "Error trying to find the html element, please check html xPath."
+                "Error trying to find the html element"
             )
-
-    def close_image(self) -> WebElement:
-        """Close the image"""
-        global TIMEOUT, HTML_X_XPATH_BUTTON
-
-        try:
-            element_present = EC.presence_of_element_located(
-                (By.XPATH, HTML_X_XPATH_BUTTON))
-            WebDriverWait(self.driver, TIMEOUT).until(element_present)
-            return self.driver.find_element(
-                by=By.XPATH, value=HTML_X_XPATH_BUTTON)
-        except TimeoutException:
-            raise TimeoutException(
-                "Error trying to find the html element, please check html xPath."
-            )
-
-    def get_image_by_xpath(self, message: str) -> list[WebElement]:
+    
+    def search_contact(self, contact_name: str) -> None:
         """
-        Get the image by Xpath
+        Search and select a contact on Whatsapp Web
 
-        args value: str - the Xpath of the image.
+        params:
+            contact_name: str - contact name. Note: does not accept emojis
         """
-        global TIMEOUT
+        global HTML_SEARCH_CONTACTS_TEXTBOX_XPATH
 
-        try:
-            element_present = EC.presence_of_element_located(
-                (By.XPATH, message))
-            WebDriverWait(self.driver, TIMEOUT).until(element_present)
-            return self.driver.find_elements(
-                by=By.XPATH, value=message)
-        except TimeoutException:
-            print(TimeoutException(
-                "Error trying to find the html element, please check html xPath."
-            ))
-            return []
-
-    def get_image_by_class_name(self, value: str) -> list[WebElement]:
-        """
-        Get the image by class name
-
-        args value: str - class name of the image.
-        """
-        global TIMEOUT
-
-        try:
-            element_present = EC.presence_of_element_located(
-                (By.CLASS_NAME, value))
-            WebDriverWait(self.driver, TIMEOUT).until(element_present)
-            return self.driver.find_elements(
-                by=By.CLASS_NAME, value=value)
-        except TimeoutException:
-            print(TimeoutException(
-                "Error trying to find the html element, please check html xPath."
-            ))
-            return []
-
-    def contacts(self, contact_name: str) -> None:
-        """Go into target chat in whatsapp"""
-        global HTML_CONTACTS_TEXTBOX
-
-        self.chat_box(HTML_CONTACTS_TEXTBOX).send_keys(contact_name)
+        self.find_chat_box(HTML_SEARCH_CONTACTS_TEXTBOX_XPATH).send_keys(
+            contact_name)
         self.find_contact(contact_name).click()
 
-    def message(self, text: str) -> None:
-        """Send text to whatsapp textbox"""
-        global HTML_XPATH_TEXTBOX
+    def find_chat_box(self, chat_box_xpath: str) -> WebElement:
+        """
+        Finds and returns the Whatsapp Web textbox
 
-        self.chat_box(HTML_XPATH_TEXTBOX).send_keys(
-            '%s: %s' % (self.bot_name, text))
+        params:
+            chat_box: str - the XPath to the textbox
 
-    def send_message(self) -> None:
-        """Send message"""
-        self.send_button().click()
+        raise - TimeoutException
+        """
+        global TIMEOUT
 
-    def answer_message(self, text: str) -> None:
-        """Send text to whatsapp textbox and send message"""
-        self.message(text=text)
-        self.send_button().click()
+        try:
+            element_present = EC.presence_of_element_located(
+                (By.XPATH, chat_box_xpath))
+            WebDriverWait(self.driver, TIMEOUT).until(element_present)
+            return self.driver.find_element(by=By.XPATH, value=chat_box_xpath)
+        except TimeoutException:
+            raise TimeoutException(
+                "Error trying to find the html element"
+            )
 
-    def read_message(self, trigger: str = '!') -> str:
+    def read_message(self, trigger_message: str = '!') -> str:
         """
         Read and return the received message.
 
-        params: trigger: str - The trigger command, default '!'.
+        params: 
+            trigger_message: str - The trigger command, default '!'.
         """
-        global LAST_MESSAGE, HTML_MESSAGE, HTML_BALOON_MESSAGE, HTML_HOUR_MESSAGE
+        global HTML_MESSAGE_CLASS_NAME, HTML_BALOON_MESSAGE_CLASS_NAME, HTML_HOUR_MESSAGE
 
         message = self.driver.find_elements(
-            by=By.CLASS_NAME, value=HTML_BALOON_MESSAGE)[-1]
-        if message.find_element(by=By.CLASS_NAME, value=HTML_MESSAGE).text[0] == trigger:
-            return message.find_element(by=By.CLASS_NAME, value=HTML_MESSAGE).text
+            by=By.CLASS_NAME, value=HTML_BALOON_MESSAGE_CLASS_NAME)[-1]
+        if message.find_element(by=By.CLASS_NAME, value=HTML_MESSAGE_CLASS_NAME).text[0] == trigger_message:
+            return message.find_element(by=By.CLASS_NAME, value=HTML_MESSAGE_CLASS_NAME).text
         return ''
 
-    def read_image(self, triggerMessage: str, dir: str, fileName: str = 'image') -> bool:
+    def read_image(self, triggerMessage: str, dir: str, file_name: str = 'image') -> bool:
         """
-        Receive a image from a contact and save then n a especific location.
+        Receive an image from a contact and save then in a specific location.
 
-        args fileName: str - name of the image
+        params:
+             file_name: str - name of the image, by default is 'image'
              triggerMessage: str - the message that trigger the command
-             dir: str - the path to save the image, by default ir the root directory
+             dir: str - the path to save the image
         """
-        global HTML_IMAGE_BOX_CLASS, HTML_IMAGE_CLASS
+        global HTML_IMAGE_BOX_CLASS_NAME, HTML_IMAGE_CLASS_NAME
 
         try:
             self.get_image_by_xpath(
@@ -262,24 +228,175 @@ class Whatsapp_API(object):
         except ElementClickInterceptedException:
             return False
 
-        self.driver.implicitly_wait(0.5)
-        image = self.get_image_by_class_name(HTML_IMAGE_BOX_CLASS)[-1].find_elements(
-            by=By.CLASS_NAME, value=HTML_IMAGE_CLASS)[-1].screenshot_as_png
+        self.driver.implicitly_wait(1)
+        image = self.get_image_by_class_name(HTML_IMAGE_BOX_CLASS_NAME)[-1].find_elements(
+            by=By.CLASS_NAME, value=HTML_IMAGE_CLASS_NAME)[-1].screenshot_as_png
 
         try:
-            with open(dir + '/' + fileName + '.png', 'wb') as file:
+            with open(dir + '/' + file_name + '.png', 'wb') as file:
                 file.write(image)
                 self.close_image().click()
                 return True
-        except IOError as err:
-            print(err)
+        except IOError:
             return False
-        except Exception as err:
-            print(err)
+        except Exception:
             return False
 
+    def get_image_by_xpath(self, xpath: str) -> list[WebElement]:
+        """
+        Find and return an image by its XPath
+
+        params:
+            xpath: src - the XPath to the image
+        """
+        global TIMEOUT
+
+        try:
+            element_present = EC.presence_of_element_located(
+                (By.XPATH, xpath))
+            WebDriverWait(self.driver, TIMEOUT).until(element_present)
+            return self.driver.find_elements(
+                by=By.XPATH, value=xpath)
+        except TimeoutException:
+            print(TimeoutException(
+                "Error trying to find image in selected message, make sure there is an image to be received."
+            ))
+            return []
+
+    def get_image_by_class_name(self, class_name: str) -> list[WebElement]:
+        """
+        Find and return an image by its class name
+
+        params:
+            class_name: src - the class name of the image
+        """
+        global TIMEOUT
+
+        try:
+            element_present = EC.presence_of_element_located(
+                (By.CLASS_NAME, class_name))
+            WebDriverWait(self.driver, TIMEOUT).until(element_present)
+            return self.driver.find_elements(
+                by=By.CLASS_NAME, value=class_name)
+        except TimeoutException:
+            print(TimeoutException(
+                "Error trying to find image in selected message, make sure there is an image to be received."
+            ))
+            return []
+
+    def write_message(self, text: str) -> None:
+        """
+        Write a message in the Whatsapp Web text box
+
+        params:
+            text: str - text to be written  
+        """
+        global HTML_XPATH_TEXTBOX_XPATH
+
+        self.find_chat_box(HTML_XPATH_TEXTBOX_XPATH).send_keys(
+            '%s: %s' % (self.bot_name, text))
+
+    def write_text_with_emoji(self, text: str, text_box: int = 2) -> None:
+        """
+        Write a message with emoji in the Whatsapp Web text box. It can also be used to search for contacts on WhatsApp Web.
+
+        params:
+        text: str - the text to be written
+        text_box: int - 1 to write in the contact search box
+                        2 to write in the message text box
+
+        raise - InvalidParameterException
+        """
+        global HTML_XPATH_TEXTBOX_XPATH, HTML_SEARCH_CONTACTS_TEXTBOX_XPATH
+
+        if text_box == 1:
+            chat_box: webelement = self.find_chat_box(
+                HTML_SEARCH_CONTACTS_TEXTBOX_XPATH)
+            self.driver.execute_script(
+                "arguments[0].innerHTML = '{}'".format(text), chat_box)
+        elif text_box == 2:
+            chat_box: webelement = self.find_chat_box(HTML_XPATH_TEXTBOX_XPATH)
+            self.driver.execute_script(
+                "arguments[0].innerHTML = '{}'".format(text), chat_box)
+            self.write_message('')
+        else:
+            raise InvalidParameterException(
+                "The parameter received is invalid. Choose between 1 to write in the contact search box or 2 to write in the message text box")
+
+    def find_send_button(self) -> WebElement:
+        """
+        Finds and returns the send button on Whatsapp Web
+
+        raise - TimeoutException
+        """
+        global TIMEOUT, HTML_SEND_BUTTON_XPATH
+
+        try:
+            element_present = EC.presence_of_element_located(
+                (By.XPATH, HTML_SEND_BUTTON_XPATH))
+            WebDriverWait(self.driver, TIMEOUT).until(element_present)
+            return self.driver.find_element(by=By.XPATH, value=HTML_SEND_BUTTON_XPATH)
+        except TimeoutException:
+            raise TimeoutException(
+                "Error trying to find the html element"
+            )
+
+    def click_send_message_button(self) -> None:
+        """Find and click the send message button on Whatsapp Web"""
+        self.find_send_button().click()
+
+    def write_and_send_message(self, text: str) -> None:
+        """Write and send a message in the current conversation"""
+        self.write_message(text=text)
+        self.find_send_button().click()
+
+    def send_image(self, dir: str) -> bool:
+        """
+        Send an image to the current conversation
+
+        params:
+            dir: str - the path the image is located
+        """
+        global HTML_XPATH_TEXTBOX_XPATH
+
+        try:
+            self.find_chat_box(HTML_XPATH_TEXTBOX_XPATH).click()
+            self.copy_image(dir)
+            hotkey("ctrl", "v")
+            self.driver.implicitly_wait(1)
+            self.find_send_button().click()
+            time.sleep(2)
+            return True
+        except Exception as err:
+            raise err
+
+    def close_image(self) -> WebElement:
+        """
+        Finds the close button on the image when it is full screen
+
+        raise - TimeoutException
+        """
+        global TIMEOUT, HTML_CLOSE_IMAGE_BUTTON_XPATH
+
+        try:
+            element_present = EC.presence_of_element_located(
+                (By.XPATH, HTML_CLOSE_IMAGE_BUTTON_XPATH))
+            WebDriverWait(self.driver, TIMEOUT).until(element_present)
+            return self.driver.find_element(
+                by=By.XPATH, value=HTML_CLOSE_IMAGE_BUTTON_XPATH)
+        except TimeoutException:
+            raise TimeoutException(
+                "Error trying to find the html element."
+            )
+
     def copy_image(self, path: str) -> None:
-        """Copy the Image to Clipboard based on the Platform"""
+        """
+        Copy the Image to Clipboard based on the Platform
+
+        raise - Exception("File Format is not Supported)
+                FileNotFoundError
+                Exception("Unsupported System")
+        """
         if system().lower() == "linux":
             if pathlib.Path(path).suffix in (".PNG", ".png"):
                 os.system(f"copyq copy image/png - < {path}")
@@ -303,6 +420,8 @@ class Whatsapp_API(object):
                     win32clipboard.CloseClipboard()
             except FileNotFoundError:
                 print(FileNotFoundError('File not Found'))
+            except Exception as err:
+                raise err
         elif system().lower() == "darwin":
             if pathlib.Path(path).suffix in (".jpg", ".jpeg", ".JPG", ".JPEG"):
                 os.system(
@@ -315,47 +434,7 @@ class Whatsapp_API(object):
         else:
             raise Exception(f"Unsupported System: {system().lower()}")
 
-    def send_image(self, dir: str) -> bool:
-        """
-        Send image to a contact.
-
-        args dir: str - the path to image
-        """
-        global HTML_XPATH_TEXTBOX
-
-        try:
-            self.chat_box(HTML_XPATH_TEXTBOX).click()
-            self.copy_image(dir)
-            hotkey("ctrl", "v")
-            self.send_button().click()
-            self.driver.implicitly_wait(0.5)
-            return True
-        except:
-            return False
-
-    def send_emoji_to_text_box(self, text: str, text_box: str = HTML_XPATH_TEXTBOX) -> None:
-        """Send a emoji to Whatsapp text box"""
-        chat_box: webelement = self.chat_box(text_box)
-        self.driver.execute_script(
-            "arguments[0].innerHTML = '{}'".format(text), chat_box)
-        self.message('')
-
-    def listen(self, text: str) -> list[WebElement]:
-        global HTML_NEW_MESSAGE
-        queue: list[WebElement] = []
-
-        try:
-            new_messages: list[WebElement] = self.driver.find_elements(
-                by=By.CLASS_NAME, value=HTML_NEW_MESSAGE)
-            for message in new_messages:
-                if message.find_element(by=By.TAG_NAME, value='span').text == text:
-                    queue.append(message.find_element(
-                        by=By.TAG_NAME, value='span'))
-            return queue
-        except StaleElementReferenceException:
-            return queue
-
     def quit(self) -> None:
-        """Close all chrome process"""
+        """Ends all Chrome processes"""
         self.driver.implicitly_wait(1)
         self.driver.quit()
