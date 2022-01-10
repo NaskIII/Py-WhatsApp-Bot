@@ -34,7 +34,7 @@ whatsapp = Whatsapp.Whatsapp_API()
 whatsapp.open_whatsapp_web()
 
 # Search for a contact in your contact list and start a conversation
-whatsapp.search_contact('Teste para a Cortana')
+whatsapp.search_contact('Matheus Morillo')
 
 # Write a message in whatsapp web text box
 whatsapp.write_message('Hi Matheus, how are you?')
