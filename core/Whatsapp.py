@@ -1,3 +1,16 @@
+# Beta Version 0.1 by Nask
+# Beta version 0.1
+#
+# Version prepared to deal with scenarios designed for testing, where basic WhatsApp functions can be performed, such as:
+
+# Receive messages from multiple chats
+# Send messages to multiple chats
+# Send images to multiple chats
+# Receive images from multiple chats
+# Send emojis to a contact or the search bar
+#
+# This version is not production ready!
+
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.remote import webelement
@@ -41,7 +54,7 @@ HTML_IMAGE_CLASS_NAME: str = '_3IfUe'
 HTML_NEW_MESSAGE_CLASS_NAME: str = 'Hy9nV'
 
 HTML_SEARCH_CONTACTS_TEXTBOX_XPATH: str = '//*[@id="side"]/div[1]/div/label/div/div[2]'
-HTML_XPATH_TEXTBOX_XPATH: str = '//*[@id="main"]/footer/div[1]/div/span[2]/div/div[2]/div[1]/div/div[2]'
+HTMLTEXTBOX_XPATH: str = '//*[@id="main"]/footer/div[1]/div/span[2]/div/div[2]/div[1]/div/div[2]'
 HTML_SEND_BUTTON_XPATH: str = '//span[@data-testid="send"]'
 HTML_CLOSE_IMAGE_BUTTON_XPATH: str = '//span[@data-testid="x-viewer"]'
 
@@ -291,9 +304,9 @@ class Whatsapp_API(object):
         params:
             text: str - text to be written  
         """
-        global HTML_XPATH_TEXTBOX_XPATH
+        global HTMLTEXTBOX_XPATH
 
-        self.find_chat_box(HTML_XPATH_TEXTBOX_XPATH).send_keys(
+        self.find_chat_box(HTMLTEXTBOX_XPATH).send_keys(
             '%s: %s' % (self.bot_name, text))
 
     def write_text_with_emoji(self, text: str, text_box: int = 2) -> None:
@@ -307,7 +320,7 @@ class Whatsapp_API(object):
 
         raise - InvalidParameterException
         """
-        global HTML_XPATH_TEXTBOX_XPATH, HTML_SEARCH_CONTACTS_TEXTBOX_XPATH
+        global HTMLTEXTBOX_XPATH, HTML_SEARCH_CONTACTS_TEXTBOX_XPATH
 
         if text_box == 1:
             chat_box: webelement = self.find_chat_box(
@@ -315,7 +328,7 @@ class Whatsapp_API(object):
             self.driver.execute_script(
                 "arguments[0].innerHTML = '{}'".format(text), chat_box)
         elif text_box == 2:
-            chat_box: webelement = self.find_chat_box(HTML_XPATH_TEXTBOX_XPATH)
+            chat_box: webelement = self.find_chat_box(HTMLTEXTBOX_XPATH)
             self.driver.execute_script(
                 "arguments[0].innerHTML = '{}'".format(text), chat_box)
             self.write_message('')
@@ -357,10 +370,10 @@ class Whatsapp_API(object):
         params:
             dir: str - the path the image is located
         """
-        global HTML_XPATH_TEXTBOX_XPATH
+        global HTMLTEXTBOX_XPATH
 
         try:
-            self.find_chat_box(HTML_XPATH_TEXTBOX_XPATH).click()
+            self.find_chat_box(HTMLTEXTBOX_XPATH).click()
             self.copy_image(dir)
             hotkey("ctrl", "v")
             self.driver.implicitly_wait(1)

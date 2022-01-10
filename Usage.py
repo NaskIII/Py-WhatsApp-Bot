@@ -1,29 +1,3 @@
-# Py-WhatsApp-Bot
-Py-WhatsApp-Bot is a library that allows you to automatically control various WhatsApp Web functions. In addition, the library allows you to receive messages and even images, without any manual interaction.
-
-## Links
-Documentation - **Coming Soon**
-
-## Installation
-Py-WhatsApp-Bot is not yet available on PyPi.
-
-Py-WhatsApp-Bot officially supports python 3.10+.
-
-### Cloning the Repository
-At the moment the installation is only available through github.
-#### HTTPS
-`git clone https://github.com/NaskIII/Py-WhatsApp-Bot.git`
-
-## Features
-- Send messages
-- Receive messages
-- Send Images
-- Receive images
-- Switch chat when another conversation executes a command
-- And more is in development
-
-## Usage
-``` python
 from core import Whatsapp
 import os
 
@@ -74,10 +48,3 @@ while quit:
         whatsapp.write_and_send_message('Goodbye!')
         # Close the process
         whatsapp.quit()
-
-
-```
-For more examples visit our Wiki
-
-## License
-MIT. For more information please [visit](https://github.com/NaskIII/Py-WhatsApp-Bot/blob/main/LICENSE)
