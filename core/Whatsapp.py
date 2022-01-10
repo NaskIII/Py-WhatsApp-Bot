@@ -1,3 +1,16 @@
+# Beta Version 0.1 by Nask
+# Beta version 0.1
+#
+# Version prepared to deal with scenarios designed for testing, where basic WhatsApp functions can be performed, such as:
+
+# Receive messages from multiple chats
+# Send messages to multiple chats
+# Send images to multiple chats
+# Receive images from multiple chats
+# Send emojis to a contact or the search bar
+#
+# This version is not production ready!
+
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.remote import webelement
