@@ -20,7 +20,11 @@ import win32clipboard
 from PIL import Image
 
 from core.Exceptions import InternetExeption
-from selenium.common.exceptions import ElementClickInterceptedException, TimeoutException, NoSuchElementException
+from selenium.common.exceptions import (
+    ElementClickInterceptedException,
+    StaleElementReferenceException,
+    TimeoutException,
+    NoSuchElementException)
 
 
 URL: str = 'https://web.whatsapp.com'
@@ -39,6 +43,7 @@ HTML_IMAGE_CLASS: str = '_3IfUe'
 HTML_XPATH_TEXTBOX: str = '//*[@id="main"]/footer/div[1]/div/span[2]/div/div[2]/div[1]/div/div[2]'
 HTML_SEND_XPATH_BUTTON: str = '//span[@data-testid="send"]'
 HTML_X_XPATH_BUTTON: str = '//span[@data-testid="x-viewer"]'
+HTML_NEW_MESSAGE: str = 'Hy9nV'
 
 
 class Whatsapp_API(object):
@@ -68,6 +73,7 @@ class Whatsapp_API(object):
         Checks if this is the first time login
         """
         global HTML_FIRST_TIME
+
         try:
             element_present = EC.presence_of_element_located(
                 (By.CLASS_NAME, HTML_FIRST_TIME))
@@ -234,10 +240,7 @@ class Whatsapp_API(object):
 
         message = self.driver.find_elements(
             by=By.CLASS_NAME, value=HTML_BALOON_MESSAGE)[-1]
-        if message.find_element(by=By.CLASS_NAME, value=HTML_MESSAGE).text[0] == trigger and message.find_element(by=By.CLASS_NAME, value=HTML_MESSAGE).text != LAST_MESSAGE:
-            _LAST_MESSAGE = message.find_element(
-                by=By.CLASS_NAME, value=HTML_MESSAGE).text
-            print(_LAST_MESSAGE)
+        if message.find_element(by=By.CLASS_NAME, value=HTML_MESSAGE).text[0] == trigger:
             return message.find_element(by=By.CLASS_NAME, value=HTML_MESSAGE).text
         return ''
 
@@ -333,8 +336,24 @@ class Whatsapp_API(object):
     def send_emoji_to_text_box(self, text: str, text_box: str = HTML_XPATH_TEXTBOX) -> None:
         """Send a emoji to Whatsapp text box"""
         chat_box: webelement = self.chat_box(text_box)
-        self.driver.execute_script("arguments[0].innerHTML = '{}'".format(text), chat_box)
+        self.driver.execute_script(
+            "arguments[0].innerHTML = '{}'".format(text), chat_box)
         self.message('')
+
+    def listen(self, text: str) -> list[WebElement]:
+        global HTML_NEW_MESSAGE
+        queue: list[WebElement] = []
+
+        try:
+            new_messages: list[WebElement] = self.driver.find_elements(
+                by=By.CLASS_NAME, value=HTML_NEW_MESSAGE)
+            for message in new_messages:
+                if message.find_element(by=By.TAG_NAME, value='span').text == text:
+                    queue.append(message.find_element(
+                        by=By.TAG_NAME, value='span'))
+            return queue
+        except StaleElementReferenceException:
+            return queue
 
     def quit(self) -> None:
         """Close all chrome process"""
