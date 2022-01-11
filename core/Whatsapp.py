@@ -52,6 +52,7 @@ HTML_HOUR_MESSAGE_CLASS_NAME: str = 'kOrB_'
 HTML_IMAGE_BOX_CLASS_NAME: str = '_1N4rE'
 HTML_IMAGE_CLASS_NAME: str = '_3IfUe'
 HTML_NEW_MESSAGE_CLASS_NAME: str = 'Hy9nV'
+HTML_LOADING_IMAGE_CLASS_NAME: str = 'MVKjw'
 
 HTML_SEARCH_CONTACTS_TEXTBOX_XPATH: str = '//*[@id="side"]/div[1]/div/label/div/div[2]'
 HTMLTEXTBOX_XPATH: str = '//*[@id="main"]/footer/div[1]/div/span[2]/div/div[2]/div[1]/div/div[2]'
@@ -172,7 +173,7 @@ class Whatsapp_API(object):
             raise TimeoutException(
                 "Error trying to find the html element"
             )
-    
+
     def search_contact(self, contact_name: str) -> None:
         """
         Search and select a contact on Whatsapp Web
@@ -231,11 +232,22 @@ class Whatsapp_API(object):
              triggerMessage: str - the message that trigger the command
              dir: str - the path to save the image
         """
-        global HTML_IMAGE_BOX_CLASS_NAME, HTML_IMAGE_CLASS_NAME
+        global TIMEOUT, HTML_IMAGE_BOX_CLASS_NAME, HTML_IMAGE_CLASS_NAME, HTML_LOADING_IMAGE_CLASS_NAME
+
+        try:
+            WebDriverWait(self.driver, 1).until(
+                EC.invisibility_of_element_located((By.CLASS_NAME, HTML_LOADING_IMAGE_CLASS_NAME)))
+        except TimeoutException:
+            print(TimeoutException(
+                "Error trying to find the html element"
+            ))
+        except Exception as err:
+            print(err)
 
         try:
             self.get_image_by_xpath(
                 "//img[@alt='%s']" % (triggerMessage))[-1].click()
+            time.sleep(0.5)
         except IndexError:
             return False
         except ElementClickInterceptedException:
