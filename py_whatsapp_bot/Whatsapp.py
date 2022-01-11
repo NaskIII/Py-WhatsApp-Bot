@@ -32,7 +32,7 @@ from platform import system
 import pathlib
 from io import BytesIO
 
-from core.Exceptions import InternetExeption, InvalidParameterException
+from py_whatsapp_bot.Exceptions import InternetExeption, InvalidParameterException
 from selenium.common.exceptions import (
     ElementClickInterceptedException,
     StaleElementReferenceException,
