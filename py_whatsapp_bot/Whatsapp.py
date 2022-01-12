@@ -1,5 +1,5 @@
-# Beta Version 0.1 by Nask
-# Beta version 0.1
+# Beta Version 0.1.3 by Nask
+# Beta version 0.1.3
 #
 # Version prepared to deal with scenarios designed for testing, where basic WhatsApp functions can be performed, such as:
 
@@ -54,6 +54,7 @@ HTML_IMAGE_CLASS_NAME: str = '_3IfUe'
 HTML_NEW_MESSAGE_CLASS_NAME: str = 'Hy9nV'
 HTML_LOADING_IMAGE_CLASS_NAME: str = 'MVKjw'
 
+HTML_LINK_CONFIRMATED_XPATH: str = '//div[@style="height: 88px;"]'
 HTML_SEARCH_CONTACTS_TEXTBOX_XPATH: str = '//*[@id="side"]/div[1]/div/label/div/div[2]'
 HTMLTEXTBOX_XPATH: str = '//*[@id="main"]/footer/div[1]/div/span[2]/div/div[2]/div[1]/div/div[2]'
 HTML_SEND_BUTTON_XPATH: str = '//span[@data-testid="send"]'
@@ -374,6 +375,22 @@ class Whatsapp_API(object):
         """Write and send a message in the current conversation"""
         self.write_message(text=text)
         self.find_send_button().click()
+
+    def send_link(self, link: str) -> None:
+        """Send a link in the chat and wait for Whatsapp to create the content preview"""
+        global HTML_LINK_CONFIRMATED_XPATH
+
+        self.write_message(link)
+        try:
+            element_present = EC.presence_of_element_located(
+                (By.XPATH, HTML_LINK_CONFIRMATED_XPATH))
+            WebDriverWait(self.driver, TIMEOUT).until(element_present)
+            self.click_send_message_button()
+        except TimeoutException:
+            print(TimeoutException(
+                "Error trying to create embed link."
+            ))
+            self.click_send_message_button()
 
     def send_image(self, dir: str) -> bool:
         """
