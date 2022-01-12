@@ -59,6 +59,9 @@ HTML_SEARCH_CONTACTS_TEXTBOX_XPATH: str = '//*[@id="side"]/div[1]/div/label/div/
 HTMLTEXTBOX_XPATH: str = '//*[@id="main"]/footer/div[1]/div/span[2]/div/div[2]/div[1]/div/div[2]'
 HTML_SEND_BUTTON_XPATH: str = '//span[@data-testid="send"]'
 HTML_CLOSE_IMAGE_BUTTON_XPATH: str = '//span[@data-testid="x-viewer"]'
+HTML_CLIP_BUTTON_XPATH: str = '//span[@data-testid="clip"]'
+HTML_SEND_FILE_BUTTON_XPATH: str = '//input[@accept="*"]'
+HTML_SEND_STICKER_BUTTON_XPATH: str = '//input[@accept="image/*"]'
 
 
 class Whatsapp_API(object):
@@ -104,7 +107,8 @@ class Whatsapp_API(object):
         try:
             element_present = EC.presence_of_element_located(
                 (By.CLASS_NAME, HTML_FIRST_TIME_CHECK_CLASS_NAME))
-            WebDriverWait(self.driver, TIMEOUT).until(element_present)
+            WebDriverWait(self.driver, TIMEOUT, ignored_exceptions=StaleElementReferenceException).until(
+                element_present)
             self.driver.find_element(
                 by=By.CLASS_NAME, value=HTML_FIRST_TIME_CHECK_CLASS_NAME)
             return True
@@ -168,7 +172,8 @@ class Whatsapp_API(object):
         try:
             element_present = EC.presence_of_element_located(
                 (By.XPATH, "//span[@title='%s']" % (contact_name)))
-            WebDriverWait(self.driver, TIMEOUT).until(element_present)
+            WebDriverWait(self.driver, TIMEOUT, ignored_exceptions=StaleElementReferenceException).until(
+                element_present)
             return self.driver.find_element(by=By.XPATH, value="//span[@title='%s']" % (contact_name))
         except TimeoutException:
             raise TimeoutException(
@@ -202,7 +207,8 @@ class Whatsapp_API(object):
         try:
             element_present = EC.presence_of_element_located(
                 (By.XPATH, chat_box_xpath))
-            WebDriverWait(self.driver, TIMEOUT).until(element_present)
+            WebDriverWait(self.driver, TIMEOUT, ignored_exceptions=StaleElementReferenceException).until(
+                element_present)
             return self.driver.find_element(by=By.XPATH, value=chat_box_xpath)
         except TimeoutException:
             raise TimeoutException(
@@ -216,19 +222,24 @@ class Whatsapp_API(object):
         params: 
             trigger_message: str - The trigger command, default '!'.
         """
-        global HTML_MESSAGE_CLASS_NAME, HTML_BALOON_MESSAGE_CLASS_NAME, HTML_HOUR_MESSAGE
+        global HTML_MESSAGE_CLASS_NAME, HTML_BALOON_MESSAGE_CLASS_NAME
 
-        message = self.driver.find_elements(
+        list_mesage: list[WebElement] = self.driver.find_elements(
             by=By.CLASS_NAME, value=HTML_BALOON_MESSAGE_CLASS_NAME)[-1]
-        
+
         try:
-            if message.find_element(by=By.CLASS_NAME, value=HTML_MESSAGE_CLASS_NAME).text[0] == trigger_message:
-                return message.find_element(by=By.CLASS_NAME, value=HTML_MESSAGE_CLASS_NAME).text
-            return ''
+            message: WebElement = list_mesage.find_element(
+                by=By.CLASS_NAME, value=HTML_MESSAGE_CLASS_NAME).text
+            if message[0] == trigger_message:
+                return message
+            else:
+                return ''
         except IndexError:
             return ''
+        except NoSuchElementException:
+            return ''
 
-    def read_image(self, triggerMessage: str, dir: str, file_name: str = 'image') -> bool:
+    def read_image(self, triggerMessage: str, dir: str, file_name: str = 'image') -> str:
         """
         Receive an image from a contact and save then in a specific location.
 
@@ -239,24 +250,16 @@ class Whatsapp_API(object):
         """
         global TIMEOUT, HTML_IMAGE_BOX_CLASS_NAME, HTML_IMAGE_CLASS_NAME, HTML_LOADING_IMAGE_CLASS_NAME
 
-        try:
-            WebDriverWait(self.driver, 1).until(
-                EC.invisibility_of_element_located((By.CLASS_NAME, HTML_LOADING_IMAGE_CLASS_NAME)))
-        except TimeoutException:
-            print(TimeoutException(
-                "Error trying to find the html element"
-            ))
-        except Exception as err:
-            print(err)
+        time.sleep(1.5)
 
         try:
             self.get_image_by_xpath(
                 "//img[@alt='%s']" % (triggerMessage))[-1].click()
             time.sleep(0.5)
         except IndexError:
-            return False
+            return ''
         except ElementClickInterceptedException:
-            return False
+            return ''
 
         self.driver.implicitly_wait(1)
         image = self.get_image_by_class_name(HTML_IMAGE_BOX_CLASS_NAME)[-1].find_elements(
@@ -266,11 +269,11 @@ class Whatsapp_API(object):
             with open(dir + '/' + file_name + '.png', 'wb') as file:
                 file.write(image)
                 self.close_image().click()
-                return True
+                return dir + '/' + file_name + '.png'
         except IOError:
-            return False
+            return ''
         except Exception:
-            return False
+            return ''
 
     def get_image_by_xpath(self, xpath: str) -> list[WebElement]:
         """
@@ -284,7 +287,8 @@ class Whatsapp_API(object):
         try:
             element_present = EC.presence_of_element_located(
                 (By.XPATH, xpath))
-            WebDriverWait(self.driver, TIMEOUT).until(element_present)
+            WebDriverWait(self.driver, TIMEOUT, ignored_exceptions=StaleElementReferenceException).until(
+                element_present)
             return self.driver.find_elements(
                 by=By.XPATH, value=xpath)
         except TimeoutException:
@@ -305,7 +309,8 @@ class Whatsapp_API(object):
         try:
             element_present = EC.presence_of_element_located(
                 (By.CLASS_NAME, class_name))
-            WebDriverWait(self.driver, TIMEOUT).until(element_present)
+            WebDriverWait(self.driver, TIMEOUT, ignored_exceptions=StaleElementReferenceException).until(
+                element_present)
             return self.driver.find_elements(
                 by=By.CLASS_NAME, value=class_name)
         except TimeoutException:
@@ -364,7 +369,9 @@ class Whatsapp_API(object):
         try:
             element_present = EC.presence_of_element_located(
                 (By.XPATH, HTML_SEND_BUTTON_XPATH))
-            WebDriverWait(self.driver, TIMEOUT).until(element_present)
+            WebDriverWait(self.driver, TIMEOUT, ignored_exceptions=StaleElementReferenceException).until(
+                element_present)
+            time.sleep(0.5)
             return self.driver.find_element(by=By.XPATH, value=HTML_SEND_BUTTON_XPATH)
         except TimeoutException:
             raise TimeoutException(
@@ -484,3 +491,98 @@ class Whatsapp_API(object):
         """Ends all Chrome processes"""
         self.driver.implicitly_wait(1)
         self.driver.quit()
+
+    def find_clip_button(self) -> WebElement:
+        """
+        Search and return button to submit content
+
+        raise - TimeoutException
+        """
+        global HTML_CLIP_BUTTON_XPATH
+
+        try:
+            element_present = EC.presence_of_element_located(
+                (By.XPATH, HTML_CLIP_BUTTON_XPATH))
+            WebDriverWait(self.driver, TIMEOUT, ignored_exceptions=StaleElementReferenceException).until(
+                element_present)
+            return self.driver.find_element(by=By.XPATH, value=HTML_CLIP_BUTTON_XPATH)
+        except TimeoutException:
+            raise TimeoutException(
+                "Error trying to find the html element."
+            )
+
+    def find_file_input(self) -> WebElement:
+        """
+        Search and return button to send files
+
+        raise - TimeoutException
+        """
+        global HTML_SEND_FILE_BUTTON_XPATH
+
+        try:
+            element_present = EC.presence_of_element_located(
+                (By.XPATH, HTML_SEND_FILE_BUTTON_XPATH))
+            WebDriverWait(self.driver, TIMEOUT, ignored_exceptions=StaleElementReferenceException).until(
+                element_present)
+            return self.driver.find_element(by=By.XPATH, value=HTML_SEND_FILE_BUTTON_XPATH)
+        except TimeoutException:
+            raise TimeoutException(
+                "Error trying to find the html element."
+            )
+
+    def find_sticker_input(self) -> WebElement:
+        """
+        Search and return button to send stickers
+
+        raise - TimeoutException
+        """
+        global HTML_SEND_STICKER_BUTTON_XPATH
+
+        try:
+            element_present = EC.presence_of_element_located(
+                (By.XPATH, HTML_SEND_STICKER_BUTTON_XPATH))
+            WebDriverWait(self.driver, TIMEOUT, ignored_exceptions=StaleElementReferenceException).until(
+                element_present)
+            return self.driver.find_element(by=By.XPATH, value=HTML_SEND_STICKER_BUTTON_XPATH)
+        except TimeoutException:
+            raise TimeoutException(
+                "Error trying to find the html element."
+            )
+
+    def send_file(self, path: str) -> bool:
+        """
+        Send a file to the current conversation
+
+        params: path: str - the path of the file to send
+
+        raise - Not specified, under investigation
+        """
+        try:
+            self.find_clip_button().click()
+            self.driver.implicitly_wait(1)
+            self.find_file_input().send_keys(path)
+            time.sleep(1)
+            self.click_send_message_button()
+            return True
+        except Exception as err:
+            print(err)
+            return False
+
+    def to_sticker(self, path: str) -> bool:
+        """
+        Send a sticker to the current conversation
+
+        params: path: str - The path to the image
+
+        raise - Not specified, under investigation
+        """
+        try:
+            self.find_clip_button().click()
+            self.driver.implicitly_wait(1)
+            self.find_sticker_input().send_keys(path)
+            time.sleep(1)
+            self.click_send_message_button()
+            return True
+        except Exception as err:
+            print(err)
+            return False
