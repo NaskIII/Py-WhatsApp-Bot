@@ -220,9 +220,13 @@ class Whatsapp_API(object):
 
         message = self.driver.find_elements(
             by=By.CLASS_NAME, value=HTML_BALOON_MESSAGE_CLASS_NAME)[-1]
-        if message.find_element(by=By.CLASS_NAME, value=HTML_MESSAGE_CLASS_NAME).text[0] == trigger_message:
-            return message.find_element(by=By.CLASS_NAME, value=HTML_MESSAGE_CLASS_NAME).text
-        return ''
+        
+        try:
+            if message.find_element(by=By.CLASS_NAME, value=HTML_MESSAGE_CLASS_NAME).text[0] == trigger_message:
+                return message.find_element(by=By.CLASS_NAME, value=HTML_MESSAGE_CLASS_NAME).text
+            return ''
+        except IndexError:
+            return ''
 
     def read_image(self, triggerMessage: str, dir: str, file_name: str = 'image') -> bool:
         """
