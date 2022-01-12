@@ -559,7 +559,7 @@ class Whatsapp_API(object):
         """
         try:
             self.find_clip_button().click()
-            self.driver.implicitly_wait(1)
+            time.sleep(1)
             self.find_file_input().send_keys(path)
             time.sleep(1)
             self.click_send_message_button()
