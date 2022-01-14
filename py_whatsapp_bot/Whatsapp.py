@@ -65,7 +65,7 @@ HTML_SEND_STICKER_BUTTON_XPATH: str = '//input[@accept="image/*"]'
 
 
 class Whatsapp_API(object):
-    def __init__(self, width: int = 800, height: int = 600, window_position_x: int = 50, window_position_y: int = 50, bot_name: str = 'Cortana') -> None:
+    def __init__(self, width: int = 800, height: int = 600, window_position_x: int = 50, window_position_y: int = 50, full_screen: bool = True, bot_name: str = 'Cortana') -> None:
         """
         Start the class with webdriver objects
 
@@ -80,11 +80,13 @@ class Whatsapp_API(object):
         options: Options = webdriver.ChromeOptions()
         options.add_argument(r"user-data-dir=" + os.getcwd() + r"\profile")
         options.add_experimental_option("excludeSwitches", ["enable-logging"])
+        options.add_argument("--start-maximized")
         self.driver = webdriver.Chrome(
             executable_path=ChromeDriverManager(log_level=0).install(), chrome_options=options)
-        self.driver.set_window_size(width=width, height=height)
-        self.driver.set_window_position(
-            x=window_position_x, y=window_position_y)
+        if not full_screen:
+            self.driver.set_window_size(width=width, height=height)
+            self.driver.set_window_position(
+                x=window_position_x, y=window_position_y)
         self.bot_name = bot_name
 
     def check_internet_connection(self, url: str = CHECK_CONNECTION_URL) -> None:
@@ -153,7 +155,7 @@ class Whatsapp_API(object):
             new_messages: list[WebElement] = self.driver.find_elements(
                 by=By.CLASS_NAME, value=HTML_NEW_MESSAGE_CLASS_NAME)
             for message in new_messages:
-                if message.find_element(by=By.TAG_NAME, value='span').text in list_commands:
+                if message.find_elements(by=By.TAG_NAME, value='span')[-1].text in list_commands:
                     queue.append(message.find_element(
                         by=By.TAG_NAME, value='span'))
             return queue
