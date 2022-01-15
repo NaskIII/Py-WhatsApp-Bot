@@ -164,8 +164,9 @@ class Whatsapp_API(object):
             new_messages: list[WebElement] = self.driver.find_elements(
                 by=By.CLASS_NAME, value=HTML_NEW_MESSAGE_CLASS_NAME)
             for message in new_messages:
-                if message.find_elements(by=By.TAG_NAME, value='span')[-1].text in list_commands:
-                    queue.append(message.find_element(
+                for commands in list_commands:
+                    if message.find_elements(by=By.TAG_NAME, value='span')[-1].text.__contains__(commands):
+                        queue.append(message.find_element(
                         by=By.TAG_NAME, value='span'))
             return queue
         except StaleElementReferenceException:
