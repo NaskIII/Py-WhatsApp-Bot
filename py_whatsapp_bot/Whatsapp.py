@@ -1,14 +1,19 @@
-# Beta Version 0.1.3 by Nask
-# Beta version 0.1.3
+# Beta Version 0.3 by Nask
+# Beta version 0.3
 #
 # Version prepared to deal with scenarios designed for testing, where basic WhatsApp functions can be performed, such as:
-
+#
 # Receive messages from multiple chats
 # Send messages to multiple chats
 # Send images to multiple chats
 # Receive images from multiple chats
 # Send emojis to a contact or the search bar
-#
+# Turn images into stickers
+# Send links
+# Send files
+# Who sent the message
+# When they sent the message
+
 # This version is not production ready!
 
 from selenium import webdriver
@@ -31,6 +36,7 @@ import os
 from platform import system
 import pathlib
 from io import BytesIO
+import warnings
 
 from py_whatsapp_bot.Exceptions import InternetExeption, InvalidParameterException
 from selenium.common.exceptions import (
@@ -38,6 +44,8 @@ from selenium.common.exceptions import (
     StaleElementReferenceException,
     TimeoutException,
     NoSuchElementException)
+
+from message_type.Message_Data import Message
 
 
 URL: str = 'https://web.whatsapp.com'
@@ -53,6 +61,7 @@ HTML_IMAGE_BOX_CLASS_NAME: str = '_1N4rE'
 HTML_IMAGE_CLASS_NAME: str = '_3IfUe'
 HTML_NEW_MESSAGE_CLASS_NAME: str = 'Hy9nV'
 HTML_LOADING_IMAGE_CLASS_NAME: str = 'MVKjw'
+HTML_MESSAGE_SENDER_CLASS_NAME: str = 'copyable-text'
 
 HTML_LINK_CONFIRMATED_XPATH: str = '//div[@style="height: 88px;"]'
 HTML_SEARCH_CONTACTS_TEXTBOX_XPATH: str = '//*[@id="side"]/div[1]/div/label/div/div[2]'
@@ -217,19 +226,21 @@ class Whatsapp_API(object):
                 "Error trying to find the html element"
             )
 
-    def read_message(self, trigger_message: str = '!') -> str:
+    def read_text(self, trigger_message: str = '!') -> str:
         """
         Read and return the received message.
 
         params: 
             trigger_message: str - The trigger command, default '!'.
         """
+        warnings.warn(
+            "read_text() -> str will be deleted in future versions, use read_message() -> Message instead", DeprecationWarning)
         global HTML_MESSAGE_CLASS_NAME, HTML_BALOON_MESSAGE_CLASS_NAME
 
-        list_mesage: list[WebElement] = self.driver.find_elements(
-            by=By.CLASS_NAME, value=HTML_BALOON_MESSAGE_CLASS_NAME)[-1]
-
         try:
+            list_mesage: WebElement = self.driver.find_elements(
+                by=By.CLASS_NAME, value=HTML_BALOON_MESSAGE_CLASS_NAME)[-1]
+
             message: WebElement = list_mesage.find_element(
                 by=By.CLASS_NAME, value=HTML_MESSAGE_CLASS_NAME).text
             if message[0] == trigger_message:
@@ -240,6 +251,60 @@ class Whatsapp_API(object):
             return ''
         except NoSuchElementException:
             return ''
+
+    def read_message(self, trigger_message: str = '!') -> Message:
+        """
+        Reads and returns an object containing the message and message information
+
+        params: 
+            trigger_message: str - The trigger command, default '!'.
+        """
+        global HTML_MESSAGE_CLASS_NAME, HTML_BALOON_MESSAGE_CLASS_NAME, HTML_MESSAGE_SENDER_CLASS_NAME
+
+        try:
+            element_present = EC.presence_of_element_located(
+                (By.CLASS_NAME, HTML_BALOON_MESSAGE_CLASS_NAME))
+            WebDriverWait(self.driver, TIMEOUT, ignored_exceptions=StaleElementReferenceException).until(
+                element_present)
+
+            list_mesage: WebElement = self.driver.find_elements(
+                by=By.CLASS_NAME, value=HTML_BALOON_MESSAGE_CLASS_NAME)[-1]
+
+            message_info: dict = self.clean_message(list_mesage.find_element(
+                by=By.CLASS_NAME, value=HTML_MESSAGE_SENDER_CLASS_NAME).get_attribute('data-pre-plain-text'))
+
+            message: str = list_mesage.find_element(
+                by=By.CLASS_NAME, value=HTML_MESSAGE_CLASS_NAME).text
+            if message[0] == trigger_message:
+                return Message(
+                    message_info["message_sender"], message_info["message_date"], message_info["message_hour"], message)
+            else:
+                return None
+        except IndexError:
+            return None
+        except NoSuchElementException:
+            return None
+
+    def clean_message(self, message_data: str) -> dict:
+        """
+        Receive message data and remove unwanted characters
+
+        params: 
+            message_data: str - message data
+        """
+
+        message_data = message_data.replace('[', '')
+        message_data = message_data.replace(']', '')
+        message_data = message_data.replace(',', '')
+
+        message_data = message_data.split()
+        message_data[2] = message_data[2].replace(':', '')
+        message_info: dict = {
+            "message_sender": message_data[2],
+            "message_date": message_data[1],
+            "message_hour": message_data[0],
+        }
+        return message_info
 
     def read_image(self, triggerMessage: str, dir: str, file_name: str = 'image') -> str:
         """
