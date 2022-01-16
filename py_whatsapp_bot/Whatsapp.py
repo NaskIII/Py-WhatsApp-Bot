@@ -300,7 +300,7 @@ class Whatsapp_API(object):
 
         message_data = message_data.split()
         message_info: dict = {
-            "message_sender": "".join(message_data[2:].replace(':', '').replace('-', '')),
+            "message_sender": "".join(message_data[2:]).replace(':', '').replace('-', ''),
             "message_date": message_data[1],
             "message_hour": message_data[0],
         }
