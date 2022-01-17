@@ -673,4 +673,5 @@ class Whatsapp_API(object):
             image.save(path_to_save)
             return path_to_save
         except WindowsError:
-            raise WindowsError
+            print(WindowsError)
+            return ''
