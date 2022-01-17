@@ -72,6 +72,8 @@ HTML_CLIP_BUTTON_XPATH: str = '//span[@data-testid="clip"]'
 HTML_SEND_FILE_BUTTON_XPATH: str = '//input[@accept="*"]'
 HTML_SEND_STICKER_BUTTON_XPATH: str = '//input[@accept="image/*"]'
 
+IMAGE_SIZE: tuple[int] = (521, 521)
+
 
 class Whatsapp_API(object):
     def __init__(self, width: int = 800, height: int = 600, window_position_x: int = 50, window_position_y: int = 50, full_screen: bool = True, bot_name: str = 'Cortana') -> None:
@@ -167,7 +169,7 @@ class Whatsapp_API(object):
                 for commands in list_commands:
                     if message.find_elements(by=By.TAG_NAME, value='span')[-1].text.__contains__(commands):
                         queue.append(message.find_element(
-                        by=By.TAG_NAME, value='span'))
+                            by=By.TAG_NAME, value='span'))
             return queue
         except StaleElementReferenceException:
             return queue
@@ -639,7 +641,8 @@ class Whatsapp_API(object):
         """
         Send a sticker to the current conversation
 
-        params: path: str - The path to the image
+        params: 
+            path: str - The path to the image
 
         raise - Not specified, under investigation
         """
@@ -653,3 +656,21 @@ class Whatsapp_API(object):
         except Exception as err:
             print(err)
             return False
+
+    def resize_image(self, path_to_open: str, path_to_save) -> str:
+        """
+        Altera o tamanho da imagem para cobrir todo o campo do sticker
+
+        params: 
+            path_to_open: str - caminho para abrir a imagem
+            path_to_save: str - Caminho para salvar a imagem
+        """
+        global IMAGE_SIZE
+
+        try:
+            image: Image = Image.open(path_to_open)
+            image = image.resize(IMAGE_SIZE, Image.ANTIALIAS)
+            image.save(path_to_save)
+            return path_to_save
+        except WindowsError:
+            raise WindowsError
