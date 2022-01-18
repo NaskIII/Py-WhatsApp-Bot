@@ -71,6 +71,7 @@ HTML_CLOSE_IMAGE_BUTTON_XPATH: str = '//span[@data-testid="x-viewer"]'
 HTML_CLIP_BUTTON_XPATH: str = '//span[@data-testid="clip"]'
 HTML_SEND_FILE_BUTTON_XPATH: str = '//input[@accept="*"]'
 HTML_SEND_STICKER_BUTTON_XPATH: str = '//input[@accept="image/*"]'
+HTML_SEND_IMAGE_VIDEO_BUTTON_XPATH: str = '//input[@accept="image/*,video/mp4,video/3gpp,video/quicktime"]'
 
 IMAGE_SIZE: tuple[int] = (521, 521)
 
@@ -617,6 +618,25 @@ class Whatsapp_API(object):
             raise TimeoutException(
                 "Error trying to find the html element."
             )
+    
+    def find_video_image_input(self) -> WebElement:
+        """
+        Search and return button to send videoss.
+
+        raise - TimeoutException
+        """
+        global HTML_SEND_IMAGE_VIDEO_BUTTON_XPATH
+
+        try:
+            element_present = EC.presence_of_element_located(
+                (By.XPATH, HTML_SEND_IMAGE_VIDEO_BUTTON_XPATH))
+            WebDriverWait(self.driver, TIMEOUT, ignored_exceptions=StaleElementReferenceException).until(
+                element_present)
+            return self.driver.find_element(by=By.XPATH, value=HTML_SEND_IMAGE_VIDEO_BUTTON_XPATH)
+        except TimeoutException:
+            raise TimeoutException(
+                "Error trying to find the html element."
+            )
 
     def send_file(self, path: str) -> bool:
         """
@@ -675,3 +695,23 @@ class Whatsapp_API(object):
         except WindowsError:
             print(WindowsError)
             return ''
+    
+    def send_video(self, path: str) -> bool:
+        """
+        Send a video to the current conversation
+
+        params: 
+            path: str - The path to the video
+
+        raise - Not specified, under investigation
+        """
+        try:
+            self.find_clip_button().click()
+            self.driver.implicitly_wait(1)
+            self.find_video_image_input().send_keys(path)
+            time.sleep(1.5)
+            self.click_send_message_button()
+            return True
+        except Exception as err:
+            print(err)
+            return False
