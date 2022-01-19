@@ -62,6 +62,7 @@ HTML_IMAGE_CLASS_NAME: str = '_3IfUe'
 HTML_NEW_MESSAGE_CLASS_NAME: str = 'Hy9nV'
 HTML_LOADING_IMAGE_CLASS_NAME: str = 'MVKjw'
 HTML_MESSAGE_SENDER_CLASS_NAME: str = 'copyable-text'
+HTML_LOADING_VIDEO_CLASSNAME: str = 'pzFG8'
 
 HTML_LINK_CONFIRMATED_XPATH: str = '//div[@style="height: 88px;"]'
 HTML_SEARCH_CONTACTS_TEXTBOX_XPATH: str = '//*[@id="side"]/div[1]/div/label/div/div[2]'
@@ -696,6 +697,20 @@ class Whatsapp_API(object):
             print(WindowsError)
             return ''
     
+    def is_loading(self, html_element: str, by: str) -> bool:
+        """
+        
+        """
+        try:
+            element_present = EC.presence_of_element_located(
+                (by, html_element))
+            WebDriverWait(self.driver, TIMEOUT, ignored_exceptions=StaleElementReferenceException).until(
+                element_present)
+            return True
+        except TimeoutException:
+            return False
+         
+
     def send_video(self, path: str) -> bool:
         """
         Send a video to the current conversation
@@ -705,13 +720,22 @@ class Whatsapp_API(object):
 
         raise - Not specified, under investigation
         """
+        global HTML_LOADING_VIDEO_CLASSNAME
+        count: int = 0
+
         try:
             self.find_clip_button().click()
             self.driver.implicitly_wait(1)
             self.find_video_image_input().send_keys(path)
-            time.sleep(1.5)
-            self.click_send_message_button()
-            return True
+            while count <= 5:
+                if self.is_loading(HTML_LOADING_VIDEO_CLASSNAME, By.CLASS_NAME):
+                    print("arroz")
+                    count += 1
+                    time.sleep(2)
+                else:
+                    print("feijao")
+                    self.click_send_message_button()
+                    return True
         except Exception as err:
             print(err)
             return False
