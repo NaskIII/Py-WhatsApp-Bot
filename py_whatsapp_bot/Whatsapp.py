@@ -711,12 +711,13 @@ class Whatsapp_API(object):
             return False
          
 
-    def send_video(self, path: str) -> bool:
+    def send_video(self, path: str, wait: int) -> bool:
         """
         Send a video to the current conversation
 
         params: 
             path: str - The path to the video
+            wait: int - tentative
 
         raise - Not specified, under investigation
         """
@@ -727,13 +728,11 @@ class Whatsapp_API(object):
             self.find_clip_button().click()
             self.driver.implicitly_wait(1)
             self.find_video_image_input().send_keys(path)
-            while count <= 5:
+            while count <= wait:
                 if self.is_loading(HTML_LOADING_VIDEO_CLASSNAME, By.CLASS_NAME):
-                    print("arroz")
                     count += 1
                     time.sleep(2)
                 else:
-                    print("feijao")
                     self.click_send_message_button()
                     return True
         except Exception as err:
