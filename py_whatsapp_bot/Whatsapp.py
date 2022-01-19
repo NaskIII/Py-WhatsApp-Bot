@@ -620,7 +620,7 @@ class Whatsapp_API(object):
             raise TimeoutException(
                 "Error trying to find the html element."
             )
-    
+
     def find_video_image_input(self) -> WebElement:
         """
         Search and return button to send videoss.
@@ -697,7 +697,7 @@ class Whatsapp_API(object):
         except WindowsError:
             print(WindowsError)
             return ''
-    
+
     def is_loading(self, html_element: str, by: str) -> bool:
         """
         Check if an html element is loading
@@ -714,7 +714,6 @@ class Whatsapp_API(object):
             return True
         except TimeoutException:
             return False
-         
 
     def send_video(self, path: str, wait: int) -> bool:
         """
