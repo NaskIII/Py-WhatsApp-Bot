@@ -1,5 +1,5 @@
-# Beta Version 0.3 by Nask
-# Beta version 0.3
+# Beta Version 0.5.1 by Nask
+# Beta version 0.5.1
 #
 # Version prepared to deal with scenarios designed for testing, where basic WhatsApp functions can be performed, such as:
 #
@@ -11,6 +11,7 @@
 # Turn images into stickers
 # Send links
 # Send files
+# Send Videos
 # Who sent the message
 # When they sent the message
 
@@ -699,7 +700,11 @@ class Whatsapp_API(object):
     
     def is_loading(self, html_element: str, by: str) -> bool:
         """
-        
+        Check if an html element is loading
+
+        params:
+            html_element: str - Path to the web element
+            by: str - defines the pricura method
         """
         try:
             element_present = EC.presence_of_element_located(
