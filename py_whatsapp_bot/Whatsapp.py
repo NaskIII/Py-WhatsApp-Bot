@@ -76,6 +76,7 @@ HTML_SEND_STICKER_BUTTON_XPATH: str = '//input[@accept="image/*"]'
 HTML_SEND_IMAGE_VIDEO_BUTTON_XPATH: str = '//input[@accept="image/*,video/mp4,video/3gpp,video/quicktime"]'
 
 IMAGE_SIZE: tuple[int] = (521, 521)
+FILE_TYPE: list[str] = ['.mpeg']
 
 
 class Whatsapp_API(object):
@@ -311,7 +312,7 @@ class Whatsapp_API(object):
         }
         return message_info
 
-    def read_image(self, triggerMessage: str, dir: str, file_name: str = 'image') -> str:
+    def read_image(self, message: str, path: str, file_name: str = 'image') -> str:
         """
         Receive an image from a contact and save then in a specific location.
 
@@ -322,11 +323,9 @@ class Whatsapp_API(object):
         """
         global TIMEOUT, HTML_IMAGE_BOX_CLASS_NAME, HTML_IMAGE_CLASS_NAME, HTML_LOADING_IMAGE_CLASS_NAME
 
-        time.sleep(1.5)
-
         try:
             self.get_image_by_xpath(
-                "//img[@alt='%s']" % (triggerMessage))[-1].click()
+                f"//img[@alt='{message}']")[-1].click()
             time.sleep(0.5)
         except IndexError:
             return ''
@@ -338,10 +337,10 @@ class Whatsapp_API(object):
             by=By.CLASS_NAME, value=HTML_IMAGE_CLASS_NAME)[-1].screenshot_as_png
 
         try:
-            with open(dir + '/' + file_name + '.png', 'wb') as file:
+            with open(path + '/' + file_name + '.png', 'wb') as file:
                 file.write(image)
                 self.close_image().click()
-                return dir + '/' + file_name + '.png'
+                return path + '/' + file_name + '.png'
         except IOError:
             return ''
         except Exception:
@@ -475,7 +474,7 @@ class Whatsapp_API(object):
             ))
             self.click_send_message_button()
 
-    def send_image(self, dir: str) -> bool:
+    def old_send_image(self, dir: str) -> bool:
         """
         Send an image to the current conversation
 
@@ -490,7 +489,25 @@ class Whatsapp_API(object):
             hotkey("ctrl", "v")
             self.driver.implicitly_wait(1)
             self.find_send_button().click()
-            time.sleep(2)
+            time.sleep(0.5)
+            return True
+        except Exception as err:
+            raise err
+
+    def send_image(self, path: str) -> bool:
+        """
+        Send an image to the current conversation
+
+        params:
+            dir: str - the path the image is located
+        """
+
+        try:
+            self.find_clip_button().click()
+            self.driver.implicitly_wait(1)
+            self.find_video_image_input().send_keys(path)
+            time.sleep(.5)
+            self.click_send_message_button()
             return True
         except Exception as err:
             raise err
@@ -623,7 +640,7 @@ class Whatsapp_API(object):
 
     def find_video_image_input(self) -> WebElement:
         """
-        Search and return button to send videoss.
+        Search and return button to send videos.
 
         raise - TimeoutException
         """
@@ -659,7 +676,7 @@ class Whatsapp_API(object):
             print(err)
             return False
 
-    def to_sticker(self, path: str) -> bool:
+    def to_sticker(self, path: str, resize: bool) -> bool:
         """
         Send a sticker to the current conversation
 
@@ -671,29 +688,35 @@ class Whatsapp_API(object):
         try:
             self.find_clip_button().click()
             self.driver.implicitly_wait(1)
-            self.find_sticker_input().send_keys(path)
-            time.sleep(1)
-            self.click_send_message_button()
-            return True
+            if resize:
+                path = self.resize_image(path, path)
+                self.find_sticker_input().send_keys(path)
+                time.sleep(.5)
+                self.click_send_message_button()
+                return True
+            else:
+                self.find_sticker_input().send_keys(path)
+                time.sleep(.5)
+                self.click_send_message_button()
         except Exception as err:
             print(err)
             return False
 
     def resize_image(self, path_to_open: str, path_to_save) -> str:
         """
-        Altera o tamanho da imagem para cobrir todo o campo do sticker
+        Change the image size to cover the entire sticker field
 
-        params: 
-            path_to_open: str - caminho para abrir a imagem
-            path_to_save: str - Caminho para salvar a imagem
+        params:
+            path_to_open: str - path to open image
+            path_to_save: str - Path to save the image
         """
         global IMAGE_SIZE
 
         try:
-            image: Image = Image.open(path_to_open)
-            image = image.resize(IMAGE_SIZE, Image.ANTIALIAS)
-            image.save(path_to_save)
-            return path_to_save
+            with Image.open(path_to_open) as image:
+                image = image.resize(IMAGE_SIZE, Image.ANTIALIAS)
+                image.save(path_to_save)
+                return path_to_save
         except WindowsError:
             print(WindowsError)
             return ''
@@ -704,16 +727,18 @@ class Whatsapp_API(object):
 
         params:
             html_element: str - Path to the web element
-            by: str - defines the pricura method
+            by: str - defines the search method
         """
+        global TIMEOUT
+
         try:
-            element_present = EC.presence_of_element_located(
+            element_present = EC.invisibility_of_element_located(
                 (by, html_element))
             WebDriverWait(self.driver, TIMEOUT, ignored_exceptions=StaleElementReferenceException).until(
                 element_present)
-            return True
-        except TimeoutException:
             return False
+        except TimeoutException:
+            return True
 
     def send_video(self, path: str, wait: int) -> bool:
         """
@@ -735,7 +760,6 @@ class Whatsapp_API(object):
             while count <= wait:
                 if self.is_loading(HTML_LOADING_VIDEO_CLASSNAME, By.CLASS_NAME):
                     count += 1
-                    time.sleep(2)
                 else:
                     self.click_send_message_button()
                     return True
