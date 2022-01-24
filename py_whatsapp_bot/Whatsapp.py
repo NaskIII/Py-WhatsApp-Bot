@@ -1,5 +1,5 @@
-# Beta Version 0.5.1 by Nask
-# Beta version 0.5.1
+# Beta Version 0.7 by Nask
+# Beta version 0.7
 #
 # Version prepared to deal with scenarios designed for testing, where basic WhatsApp functions can be performed, such as:
 #
@@ -17,6 +17,7 @@
 
 # This version is not production ready!
 
+import errno
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.remote import webelement
@@ -24,6 +25,7 @@ from selenium.webdriver.remote.webelement import WebElement
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.common.by import By
+from selenium.webdriver.common.action_chains import ActionChains
 
 from webdriver_manager.chrome import ChromeDriverManager
 
@@ -64,6 +66,10 @@ HTML_NEW_MESSAGE_CLASS_NAME: str = 'Hy9nV'
 HTML_LOADING_IMAGE_CLASS_NAME: str = 'MVKjw'
 HTML_MESSAGE_SENDER_CLASS_NAME: str = 'copyable-text'
 HTML_LOADING_VIDEO_CLASSNAME: str = 'pzFG8'
+HTML_GROUP_NAME_CLASSNAME: str = '_24-Ff'
+HTML_CHANGE_GROUP_NAME_CLASSNAME: str = '_8o4MO'
+HTML_TEXTBOX_GROUP_NAME: str = '_13NKt'
+HTML_GROUP_NAME_HOVER: str = 'qfejxiq4'
 
 HTML_LINK_CONFIRMATED_XPATH: str = '//div[@style="height: 88px;"]'
 HTML_SEARCH_CONTACTS_TEXTBOX_XPATH: str = '//*[@id="side"]/div[1]/div/label/div/div[2]'
@@ -74,13 +80,16 @@ HTML_CLIP_BUTTON_XPATH: str = '//span[@data-testid="clip"]'
 HTML_SEND_FILE_BUTTON_XPATH: str = '//input[@accept="*"]'
 HTML_SEND_STICKER_BUTTON_XPATH: str = '//input[@accept="image/*"]'
 HTML_SEND_IMAGE_VIDEO_BUTTON_XPATH: str = '//input[@accept="image/*,video/mp4,video/3gpp,video/quicktime"]'
+HTML_CONFIRM_GROUP_NAME_BUTTON_XPATH: str = '//span[@data-testid="checkmark"]'
 
 IMAGE_SIZE: tuple[int] = (521, 521)
 FILE_TYPE: list[str] = ['.mpeg']
 
 
 class Whatsapp_API(object):
-    def __init__(self, width: int = 800, height: int = 600, window_position_x: int = 50, window_position_y: int = 50, full_screen: bool = True, bot_name: str = 'Cortana') -> None:
+    def __init__(self, width: int = 800, height: int = 600, window_position_x: int = 50,
+                 window_position_y: int = 50, full_screen: bool = True, bot_name: str = 'Cortana',
+                 administrator: bool = False) -> None:
         """
         Start the class with webdriver objects
 
@@ -103,6 +112,7 @@ class Whatsapp_API(object):
             self.driver.set_window_position(
                 x=window_position_x, y=window_position_y)
         self.bot_name = bot_name
+        self.administrator = administrator
 
     def check_internet_connection(self, url: str = CHECK_CONNECTION_URL) -> None:
         """Check the Internet connection of the Host Machine"""
@@ -209,6 +219,7 @@ class Whatsapp_API(object):
 
         self.find_chat_box(HTML_SEARCH_CONTACTS_TEXTBOX_XPATH).send_keys(
             contact_name)
+        time.sleep(.5)
         self.find_contact(contact_name).click()
 
     def find_chat_box(self, chat_box_xpath: str) -> WebElement:
@@ -312,7 +323,7 @@ class Whatsapp_API(object):
         }
         return message_info
 
-    def read_image(self, message: str, path: str, file_name: str = 'image') -> str:
+    def read_image(self, message: str, path: str, file_name: str = 'image', time_to_sleep: float = 1.5) -> str:
         """
         Receive an image from a contact and save then in a specific location.
 
@@ -322,6 +333,8 @@ class Whatsapp_API(object):
              dir: str - the path to save the image
         """
         global TIMEOUT, HTML_IMAGE_BOX_CLASS_NAME, HTML_IMAGE_CLASS_NAME, HTML_LOADING_IMAGE_CLASS_NAME
+
+        time.sleep(time_to_sleep)
 
         try:
             self.get_image_by_xpath(
@@ -766,3 +779,120 @@ class Whatsapp_API(object):
         except Exception as err:
             print(err)
             return False
+
+    def find_group_name(self) -> WebElement:
+        """
+        Finds and returns the button for the group name
+        """
+        global HTML_GROUP_NAME_CLASSNAME
+
+        try:
+            element_present = EC.presence_of_element_located(
+                (By.CLASS_NAME, HTML_GROUP_NAME_CLASSNAME))
+            WebDriverWait(self.driver, TIMEOUT, ignored_exceptions=StaleElementReferenceException).until(
+                element_present)
+            return self.driver.find_element(by=By.CLASS_NAME, value=HTML_GROUP_NAME_CLASSNAME)
+        except TimeoutException:
+            raise TimeoutException(
+                "Error trying to find the html element."
+            )
+
+    def find_change_group_name_button(self) -> WebElement:
+        """
+        Finds and returns the button to enable group name change
+        """
+        global HTML_CHANGE_GROUP_NAME_CLASSNAME
+
+        try:
+            element_present = EC.presence_of_element_located(
+                (By.CLASS_NAME, HTML_CHANGE_GROUP_NAME_CLASSNAME))
+            WebDriverWait(self.driver, TIMEOUT, ignored_exceptions=StaleElementReferenceException).until(
+                element_present)
+            return self.driver.find_element(by=By.CLASS_NAME, value=HTML_CHANGE_GROUP_NAME_CLASSNAME)
+        except TimeoutException:
+            raise TimeoutException(
+                "Error trying to find the html element."
+            )
+
+    def find_change_group_name_textbox(self) -> WebElement:
+        """
+        Find and return the text box to change the group name
+        """
+        global HTML_TEXTBOX_GROUP_NAME
+
+        try:
+            element_present = EC.presence_of_element_located(
+                (By.CLASS_NAME, HTML_TEXTBOX_GROUP_NAME))
+            WebDriverWait(self.driver, TIMEOUT, ignored_exceptions=StaleElementReferenceException).until(
+                element_present)
+            return self.driver.find_element(by=By.CLASS_NAME, value=HTML_TEXTBOX_GROUP_NAME)
+        except TimeoutException:
+            raise TimeoutException(
+                "Error trying to find the html element."
+            )
+
+    def find_confirm_group_name_button(self) -> WebElement:
+        """
+        Finds and returns the button to confirm the group name change
+        """
+        global HTML_CONFIRM_GROUP_NAME_BUTTON_XPATH
+
+        try:
+            element_present = EC.presence_of_element_located(
+                (By.XPATH, HTML_CONFIRM_GROUP_NAME_BUTTON_XPATH))
+            WebDriverWait(self.driver, TIMEOUT, ignored_exceptions=StaleElementReferenceException).until(
+                element_present)
+            return self.driver.find_element(by=By.XPATH, value=HTML_CONFIRM_GROUP_NAME_BUTTON_XPATH)
+        except TimeoutException:
+            raise TimeoutException(
+                "Error trying to find the html element."
+            )
+
+    def hover_element(self, by: str, html_element: str) -> None:
+        """
+        Mimics the hover of an HTML element
+        """
+        global HTML_GROUP_NAME_HOVER
+
+        try:
+            element_present = EC.presence_of_element_located(
+                (by, HTML_GROUP_NAME_HOVER))
+            WebDriverWait(self.driver, TIMEOUT, ignored_exceptions=StaleElementReferenceException).until(
+                element_present)
+            web_element: WebElement = self.driver.find_element(
+                by=by, value=html_element)
+            actions: ActionChains = ActionChains(self.driver)
+            actions.move_to_element(web_element)
+            actions.perform()
+        except TimeoutException:
+            raise TimeoutException(
+                "Error trying to find the html element."
+            )
+
+    def change_group_name(self, new_name: str) -> bool:
+        """
+        Change the name of a group
+
+        params:
+            new_name: str - new group name.
+        """
+        global HTML_GROUP_NAME_HOVER
+
+        if self.administrator:
+            try:
+                self.find_group_name().click()
+                self.hover_element(By.CLASS_NAME, HTML_GROUP_NAME_HOVER)
+                self.find_change_group_name_button().click()
+                time.sleep(.5)
+                hotkey('ctrl', 'a')
+                time.sleep(.5)
+                hotkey('backspace')
+                self.find_change_group_name_textbox().send_keys(new_name)
+                self.find_confirm_group_name_button().click()
+                hotkey('escape')
+                return True
+            except Exception as err:
+                print(err)
+                return False
+        else:
+            return None

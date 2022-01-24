@@ -1,5 +1,5 @@
-# Beta Version 0.3 by Nask
-# Beta version 0.3
+# Beta Version 0.7 by Nask
+# Beta version 0.7
 #
 # Version prepared to deal with scenarios designed for testing, where basic WhatsApp functions can be performed, such as:
 #
@@ -20,9 +20,11 @@ from datetime import datetime
 
 
 class Message(object):
-    def __init__(self, message_sender: str, message_date: str, message_hour:str, message: str) -> None:
+    def __init__(self, message_sender: str, message_date: str, message_hour: str, message: str) -> None:
         super().__init__()
         self.message_sender: str = message_sender
-        self.message_date: datetime.date = datetime.strptime(message_date, '%d/%m/%Y').date()
-        self.message_hour: datetime.time = datetime.strptime(message_hour, '%H:%M').time()
+        self.message_date: datetime.date = datetime.strptime(
+            message_date, '%d/%m/%Y').date()
+        self.message_hour: datetime.time = datetime.strptime(
+            message_hour, '%H:%M').time()
         self.message: str = message
