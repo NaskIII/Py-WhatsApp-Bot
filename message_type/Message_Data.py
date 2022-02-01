@@ -20,7 +20,7 @@ from datetime import datetime
 
 
 class Message(object):
-    def __init__(self, message_sender: str, message_date: str, message_hour: str, message: str) -> None:
+    def __init__(self, message_sender: str, message_date: str, message_hour: str, message: str, message_id: str) -> None:
         super().__init__()
         self.message_sender: str = message_sender
         self.message_date: datetime.date = datetime.strptime(
@@ -28,3 +28,4 @@ class Message(object):
         self.message_hour: datetime.time = datetime.strptime(
             message_hour, '%H:%M').time()
         self.message: str = message
+        self.message_id: str = message_id

@@ -1,5 +1,5 @@
-# Beta Version 0.7 by Nask
-# Beta version 0.7
+# Beta Version 0.8 by Nask
+# Beta version 0.8
 #
 # Version prepared to deal with scenarios designed for testing, where basic WhatsApp functions can be performed, such as:
 #
@@ -17,7 +17,7 @@
 
 # This version is not production ready!
 
-import errno
+import base64
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.remote import webelement
@@ -40,10 +40,11 @@ from platform import system
 import pathlib
 from io import BytesIO
 import warnings
+from datetime import datetime
+from urllib import request
 
 from py_whatsapp_bot.Exceptions import InternetExeption, InvalidParameterException
 from selenium.common.exceptions import (
-    ElementClickInterceptedException,
     StaleElementReferenceException,
     TimeoutException,
     NoSuchElementException)
@@ -70,6 +71,7 @@ HTML_GROUP_NAME_CLASSNAME: str = '_24-Ff'
 HTML_CHANGE_GROUP_NAME_CLASSNAME: str = '_8o4MO'
 HTML_TEXTBOX_GROUP_NAME: str = '_13NKt'
 HTML_GROUP_NAME_HOVER: str = 'qfejxiq4'
+HTML_MAIN_BALLON_MESSAGE_CLASSNAME: str = '_2wUmf'
 
 HTML_LINK_CONFIRMATED_XPATH: str = '//div[@style="height: 88px;"]'
 HTML_SEARCH_CONTACTS_TEXTBOX_XPATH: str = '//*[@id="side"]/div[1]/div/label/div/div[2]'
@@ -82,8 +84,10 @@ HTML_SEND_STICKER_BUTTON_XPATH: str = '//input[@accept="image/*"]'
 HTML_SEND_IMAGE_VIDEO_BUTTON_XPATH: str = '//input[@accept="image/*,video/mp4,video/3gpp,video/quicktime"]'
 HTML_CONFIRM_GROUP_NAME_BUTTON_XPATH: str = '//span[@data-testid="checkmark"]'
 
-IMAGE_SIZE: tuple[int] = (521, 521)
+IMAGE_SIZE: tuple[int] = (800, 800)
 FILE_TYPE: list[str] = ['.mpeg']
+
+CURRENT_TIME: time = datetime.now().time()
 
 
 class Whatsapp_API(object):
@@ -98,7 +102,7 @@ class Whatsapp_API(object):
             height: int - the height of the browser
             window_position_x: int - browser's starting position in quadrant x
             window_position_y: int - browser start position in y quadrant
-            bot_name: str - name for the bot, by default the name is set to Cortana 
+            bot_name: str - name for the bot, by default the name is set to Cortana
         """
         super().__init__()
         options: Options = webdriver.ChromeOptions()
@@ -248,7 +252,7 @@ class Whatsapp_API(object):
         """
         Read and return the received message.
 
-        params: 
+        params:
             trigger_message: str - The trigger command, default '!'.
         """
         warnings.warn(
@@ -270,13 +274,15 @@ class Whatsapp_API(object):
         except NoSuchElementException:
             return ''
 
-    def read_message(self, trigger_message: str = '!') -> Message:
+    def old_read_message(self, trigger_message: str = '!') -> Message:
         """
         Reads and returns an object containing the message and message information
 
-        params: 
+        params:
             trigger_message: str - The trigger command, default '!'.
         """
+        warnings.warn(
+            "old_read_message() -> Message will be deleted in future versions, use read_message() -> Message instead", DeprecationWarning)
         global HTML_MESSAGE_CLASS_NAME, HTML_BALOON_MESSAGE_CLASS_NAME, HTML_MESSAGE_SENDER_CLASS_NAME
 
         try:
@@ -288,12 +294,12 @@ class Whatsapp_API(object):
             list_mesage: WebElement = self.driver.find_elements(
                 by=By.CLASS_NAME, value=HTML_BALOON_MESSAGE_CLASS_NAME)[-1]
 
-            message_info: dict = self.clean_message(list_mesage.find_element(
-                by=By.CLASS_NAME, value=HTML_MESSAGE_SENDER_CLASS_NAME).get_attribute('data-pre-plain-text'))
-
             message: str = list_mesage.find_element(
                 by=By.CLASS_NAME, value=HTML_MESSAGE_CLASS_NAME).text
             if message[0] == trigger_message:
+                message_info: dict = self.clean_message(list_mesage.find_element(
+                    by=By.CLASS_NAME, value=HTML_MESSAGE_SENDER_CLASS_NAME).get_attribute('data-pre-plain-text'))
+
                 return Message(
                     message_info["message_sender"], message_info["message_date"], message_info["message_hour"], message)
             else:
@@ -303,11 +309,79 @@ class Whatsapp_API(object):
         except NoSuchElementException:
             return None
 
+    def read_message(self, trigger_message: list[str]) -> Message:
+        """
+        Reads and returns an object containing the message and message information
+
+        params:
+            trigger_message: list[str] - the list of commands.
+        """
+        global HTML_MESSAGE_CLASS_NAME, HTML_BALOON_MESSAGE_CLASS_NAME, HTML_MESSAGE_SENDER_CLASS_NAME, HTML_MAIN_BALLON_MESSAGE_CLASSNAME, CURRENT_TIME
+
+        command_message: list[Message] = []
+
+        try:
+            element_present = EC.presence_of_element_located(
+                (By.CLASS_NAME, HTML_MAIN_BALLON_MESSAGE_CLASSNAME))
+            WebDriverWait(self.driver, TIMEOUT,
+                          ignored_exceptions=StaleElementReferenceException
+                          ).until(element_present)
+
+            list_mesage: list[WebElement] = self.driver.find_elements(
+                by=By.CLASS_NAME, value=HTML_MAIN_BALLON_MESSAGE_CLASSNAME)
+
+            for message_element in list_mesage:
+
+                try:
+
+                    message: str = message_element.find_element(
+                        by=By.CLASS_NAME,
+                        value='cvjcv'
+                    ).get_attribute('class')
+
+                    if self.have_message(message):
+
+                        message: str = message_element.find_element(
+                            by=By.CLASS_NAME,
+                            value=HTML_MESSAGE_CLASS_NAME
+                        ).text
+
+                        message_info: dict = self.clean_message(message_element.find_element(
+                            by=By.CLASS_NAME,
+                            value=HTML_MESSAGE_SENDER_CLASS_NAME
+                        ).get_attribute('data-pre-plain-text'))
+
+                        if message.split()[0] in trigger_message and datetime.strptime(
+                                message_info['message_hour'],
+                                '%H:%M').time() >= CURRENT_TIME:
+
+                            message_id: str = message_element.get_attribute(
+                                'data-id')
+                            command_message.append(Message(
+                                message_info["message_sender"],
+                                message_info["message_date"],
+                                message_info["message_hour"],
+                                message,
+                                message_id))
+                except NoSuchElementException:
+                    pass
+                except Exception as err:
+                    print(err)
+
+            return command_message
+        except IndexError as err:
+            print(err)
+        except TimeoutError as err:
+            print(err)
+
+    def have_message(self, element: str) -> bool:
+        return bool(element in ['cvjcv _1Ilru', 'cvjcv _3QK-g'])
+
     def clean_message(self, message_data: str) -> dict:
         """
         Receive message data and remove unwanted characters
 
-        params: 
+        params:
             message_data: str - message data
         """
 
@@ -323,7 +397,7 @@ class Whatsapp_API(object):
         }
         return message_info
 
-    def read_image(self, message: str, path: str, file_name: str = 'image', time_to_sleep: float = 1.5) -> str:
+    def old_read_image(self, message_id: str, path: str, file_name: str = 'image', time_to_sleep: float = 1) -> str:
         """
         Receive an image from a contact and save then in a specific location.
 
@@ -332,32 +406,93 @@ class Whatsapp_API(object):
              triggerMessage: str - the message that trigger the command
              dir: str - the path to save the image
         """
-        global TIMEOUT, HTML_IMAGE_BOX_CLASS_NAME, HTML_IMAGE_CLASS_NAME, HTML_LOADING_IMAGE_CLASS_NAME
+        warnings.warn(
+            "old_read_image() -> str will be deleted in future versions, use read_image() -> str instead", DeprecationWarning)
+        global TIMEOUT, HTML_IMAGE_BOX_CLASS_NAME, HTML_IMAGE_CLASS_NAME, HTML_LOADING_IMAGE_CLASS_NAME, HTML_MAIN_BALLON_MESSAGE_CLASSNAME
 
         time.sleep(time_to_sleep)
 
-        try:
-            self.get_image_by_xpath(
-                f"//img[@alt='{message}']")[-1].click()
-            time.sleep(0.5)
-        except IndexError:
-            return ''
-        except ElementClickInterceptedException:
-            return ''
+        image_element: WebElement = self.driver.find_element(
+            by=By.XPATH,
+            value=f'//div[@data-id="{message_id}"]'
+        ).find_elements(
+            by=By.CLASS_NAME,
+            value=HTML_IMAGE_CLASS_NAME
+        )[-1]
 
-        self.driver.implicitly_wait(1)
-        image = self.get_image_by_class_name(HTML_IMAGE_BOX_CLASS_NAME)[-1].find_elements(
+        image_element.click()
+        time.sleep(.5)
+
+        image: str = self.get_image_by_class_name(HTML_IMAGE_BOX_CLASS_NAME)[-1].find_elements(
             by=By.CLASS_NAME, value=HTML_IMAGE_CLASS_NAME)[-1].screenshot_as_png
 
         try:
-            with open(path + '/' + file_name + '.png', 'wb') as file:
+            with open(f'{path}/{file_name}.png', 'wb') as file:
                 file.write(image)
                 self.close_image().click()
-                return path + '/' + file_name + '.png'
+                return f'{path}/{file_name}.png'
         except IOError:
             return ''
         except Exception:
             return ''
+
+    def read_image(self, message_id: str, path: str, file_name: str = 'image', time_to_sleep: float = 1) -> str:
+        """
+        Receive an image from a contact and save then in a specific location.
+
+        params:
+             file_name: str - name of the image, by default is 'image'
+             triggerMessage: str - the message that trigger the command
+             dir: str - the path to save the image
+        """
+        global TIMEOUT, HTML_IMAGE_BOX_CLASS_NAME, HTML_IMAGE_CLASS_NAME, HTML_LOADING_IMAGE_CLASS_NAME, HTML_MAIN_BALLON_MESSAGE_CLASSNAME
+
+        time.sleep(time_to_sleep)
+
+        image_element: WebElement = self.driver.find_element(
+            by=By.XPATH,
+            value=f'//div[@data-id="{message_id}"]'
+        ).find_elements(
+            by=By.CLASS_NAME,
+            value=HTML_IMAGE_CLASS_NAME
+        )[-1]
+
+        image_element.click()
+        time.sleep(.5)
+
+        image_link: str = self.get_image_by_class_name(HTML_IMAGE_BOX_CLASS_NAME)[-1].find_elements(
+            by=By.CLASS_NAME,
+            value=HTML_IMAGE_CLASS_NAME
+        )[-1].find_element(
+            by=By.TAG_NAME,
+            value='img'
+        ).get_attribute('src')
+
+        result = self.driver.execute_async_script("""
+                        var uri = arguments[0];
+                        var callback = arguments[1];
+                        var toBase64 = function(buffer){for(var r,n=new Uint8Array(buffer),t=n.length,a=new Uint8Array(4*Math.ceil(t/3)),i=new Uint8Array(64),o=0,c=0;64>c;++c)i[c]="ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/".charCodeAt(c);for(c=0;t-t%3>c;c+=3,o+=4)r=n[c]<<16|n[c+1]<<8|n[c+2],a[o]=i[r>>18],a[o+1]=i[r>>12&63],a[o+2]=i[r>>6&63],a[o+3]=i[63&r];return t%3===1?(r=n[t-1],a[o]=i[r>>2],a[o+1]=i[r<<4&63],a[o+2]=61,a[o+3]=61):t%3===2&&(r=(n[t-2]<<8)+n[t-1],a[o]=i[r>>10],a[o+1]=i[r>>4&63],a[o+2]=i[r<<2&63],a[o+3]=61),new TextDecoder("ascii").decode(a)};
+                        var xhr = new XMLHttpRequest();
+                        xhr.responseType = 'arraybuffer';
+                        xhr.onload = function(){ callback(toBase64(xhr.response)) };
+                        xhr.onerror = function(){ callback(xhr.status) };
+                        xhr.open('GET', uri);
+                        xhr.send();
+                        """, image_link)
+
+        if isinstance(result, int):
+            raise Exception(f"Request failed with status {result}")
+
+        try:
+            with open(f'{path}/{file_name}.png', 'wb') as file:
+                image: bytes = base64.b64decode(result)
+                file.write(image)
+                self.close_image().click()
+                return f'{path}/{file_name}.png'
+        except IOError:
+            return None
+        except Exception:
+            return None
 
     def get_image_by_xpath(self, xpath: str) -> list[WebElement]:
         """
@@ -408,12 +543,12 @@ class Whatsapp_API(object):
         Write a message in the Whatsapp Web text box
 
         params:
-            text: str - text to be written  
+            text: str - text to be written
         """
         global HTMLTEXTBOX_XPATH
 
         self.find_chat_box(HTMLTEXTBOX_XPATH).send_keys(
-            '%s: %s' % (self.bot_name, text))
+            f'{self.bot_name}: {text}')
 
     def write_text_with_emoji(self, text: str, text_box: int = 2) -> None:
         """
@@ -522,8 +657,8 @@ class Whatsapp_API(object):
             time.sleep(.5)
             self.click_send_message_button()
             return True
-        except Exception as err:
-            raise err
+        except Exception:
+            return False
 
     def close_image(self) -> WebElement:
         """
@@ -693,7 +828,7 @@ class Whatsapp_API(object):
         """
         Send a sticker to the current conversation
 
-        params: 
+        params:
             path: str - The path to the image
 
         raise - Not specified, under investigation
@@ -702,7 +837,7 @@ class Whatsapp_API(object):
             self.find_clip_button().click()
             self.driver.implicitly_wait(1)
             if resize:
-                path = self.resize_image(path, path)
+                path: str = self.resize_image(path, path)
                 self.find_sticker_input().send_keys(path)
                 time.sleep(.5)
                 self.click_send_message_button()
@@ -711,6 +846,7 @@ class Whatsapp_API(object):
                 self.find_sticker_input().send_keys(path)
                 time.sleep(.5)
                 self.click_send_message_button()
+                return True
         except Exception as err:
             print(err)
             return False
@@ -757,7 +893,7 @@ class Whatsapp_API(object):
         """
         Send a video to the current conversation
 
-        params: 
+        params:
             path: str - The path to the video
             wait: int - tentative
 
